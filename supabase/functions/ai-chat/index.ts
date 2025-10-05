@@ -81,10 +81,25 @@ function detectLanguage(text: string): string {
 
 function shouldGenerateTransformation(message: string): boolean {
   const transformationKeywords = [
+    // English
     'transform', 'change', 'modernize', 'renovate', 'simulate',
     'show me', 'different', 'variation', 'makeover', 'redesign',
     'update', 'upgrade', 'replace', 'swap', 'try', 'what if',
-    'how would', 'can you show', 'visualize', 'imagine'
+    'how would', 'can you show', 'visualize', 'imagine',
+    // Romanian
+    'transformă', 'schimbă', 'modernizează', 'renovează', 'simulează',
+    'arată-mi', 'diferit', 'variație', 'reamenajare', 'redesign',
+    'actualizează', 'îmbunătățește', 'înlocuiește', 'încearcă',
+    'cum ar', 'poți să arăți', 'vizualizează',
+    // Spanish
+    'transformar', 'cambiar', 'modernizar', 'renovar', 'simular',
+    'muéstrame', 'diferente', 'variación', 'rediseñar',
+    // French
+    'transformer', 'changer', 'moderniser', 'rénover', 'simuler',
+    'montre-moi', 'différent', 'variation', 'réaménager',
+    // German
+    'transformieren', 'ändern', 'modernisieren', 'renovieren',
+    'zeig mir', 'anders', 'variation', 'umgestalten'
   ];
   const lowerMessage = message.toLowerCase();
   return transformationKeywords.some(keyword => lowerMessage.includes(keyword));
@@ -388,11 +403,12 @@ WHEN USERS WANT TO GENERATE DESIGNS FROM SCRATCH (no image uploaded):
 2. **After gathering 3-4 key details**, offer to generate:
    "Perfect! Based on your preferences for a [style] [space type] with [features], I can create a realistic visualization for you. Would you like me to generate that now?"
 
-3. **When user confirms**, respond with:
-   "Great! I'm generating a photorealistic design based on our conversation. This will take about 20-30 seconds... ✨"
+3. **When user confirms**, YOU MUST include the special marker "GENERATE_IMAGE:" followed by a detailed prompt:
+   Example: "Great! I'm generating a photorealistic design... ✨
    
-   Then include the phrase "GENERATE_IMAGE:" followed by a detailed description for generation.
-   Example: "GENERATE_IMAGE: A modern Scandinavian kitchen with white shaker cabinets, light wood floors, subway tile backsplash, black hardware, and a large center island with pendant lighting."
+   GENERATE_IMAGE: A modern Scandinavian kitchen with white shaker cabinets, light wood floors, subway tile backsplash, black hardware, and a large center island with pendant lighting."
+   
+   **CRITICAL**: Always use "GENERATE_IMAGE:" marker for image generation requests (both text-to-image and image transformations).
 
 WHEN USERS UPLOAD IMAGES:
 ${hasImages ? `
@@ -405,7 +421,11 @@ ${hasImages ? `
 - Suggest specific improvements based on what you see
 - Recommend materials, colors, and finishes that complement the space
 - Provide actionable renovation/design suggestions
-- Transformation images will be automatically generated when they request changes
+
+**When they request transformations**, use the "GENERATE_IMAGE:" marker with a detailed description:
+Example: "Let me show you how that would look! ✨
+
+GENERATE_IMAGE: Transform this kitchen with modern white cabinets, quartz countertops, and stainless steel appliances while preserving the existing layout."
 ` : ''}
 
 GENERAL CAPABILITIES:
@@ -614,104 +634,99 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
         LOVABLE_API_KEY
       ).catch(err => console.error("Background extraction error:", err));
 
-      // 2. Handle TEXT-TO-IMAGE generation (from scratch)
-      if (shouldGenerateText) {
-        console.log('Text-to-image generation request detected');
-        
-        (async () => {
-          try {
-            // Read the AI response to detect GENERATE_IMAGE marker
-            const reader = streamBackground.getReader();
-            const decoder = new TextDecoder();
-            let fullResponse = '';
+      // 2. Process AI response stream for image generation markers
+      (async () => {
+        try {
+          const reader = streamBackground.getReader();
+          const decoder = new TextDecoder();
+          let assistantTextBuffer = '';
+          let textBuffer = '';
+          
+          // Parse SSE stream line-by-line to extract assistant content
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
             
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              fullResponse += decoder.decode(value, { stream: true });
+            textBuffer += decoder.decode(value, { stream: true });
+            
+            // Process complete SSE lines
+            let newlineIndex: number;
+            while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+              let line = textBuffer.slice(0, newlineIndex);
+              textBuffer = textBuffer.slice(newlineIndex + 1);
+              
+              if (line.endsWith("\r")) line = line.slice(0, -1);
+              if (line.startsWith(":") || line.trim() === "") continue;
+              if (!line.startsWith("data: ")) continue;
+              
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === "[DONE]") break;
+              
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  assistantTextBuffer += content;
+                }
+              } catch {
+                // Incomplete JSON, will retry on next iteration
+              }
             }
-            
-            // Check if AI confirmed generation with GENERATE_IMAGE marker
-            if (fullResponse.includes('GENERATE_IMAGE:')) {
-              const generationMatch = fullResponse.match(/GENERATE_IMAGE:\s*(.+?)(?=\n\n|$)/s);
-              if (generationMatch) {
-                const generationPrompt = generationMatch[1].trim();
-                console.log('Generating image with prompt:', generationPrompt.substring(0, 100) + '...');
-                
-                // Get project data for context
-                const { data: projectData } = await supabase
-                  .from("projects")
-                  .select("name, budget, style_preferences")
-                  .eq("id", projectId)
-                  .maybeSingle();
-                
-                // Call generate-renovation-image WITHOUT originalImageUrl (text-to-image mode)
-                const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${supabaseKey}`,
-                  },
-                  body: JSON.stringify({
-                    transformationRequest: generationPrompt,
-                    projectContext: projectData,
-                    // No originalImageUrl = text-to-image mode
-                  }),
-                });
-
-                if (imageGenResponse.ok) {
-                  const { generatedImageUrl } = await imageGenResponse.json();
-                  console.log('Text-to-image generation successful');
-
-                  // Save generated image as new message
-                  await supabase.from('messages').insert({
-                    conversation_id: conversationId,
-                    role: 'assistant',
-                    content: '✨ Here\'s your custom design visualization! This photorealistic rendering brings your vision to life. Would you like me to generate variations with different styles, colors, or layouts?',
-                    image_url: generatedImageUrl
-                  });
-
-                  console.log('Generated image saved to conversation');
-                } else {
-                  const errorText = await imageGenResponse.text();
-                  console.error('Text-to-image generation failed:', imageGenResponse.status, errorText);
+          }
+          
+          console.log('AI response buffer length:', assistantTextBuffer.length);
+          console.log('Checking for GENERATE_IMAGE marker...');
+          
+          // Check if AI included GENERATE_IMAGE marker
+          const hasGenerateMarker = assistantTextBuffer.includes('GENERATE_IMAGE:');
+          console.log('GENERATE_IMAGE marker found:', hasGenerateMarker);
+          
+          let generationPrompt: string | null = null;
+          let originalImageUrl: string | null = null;
+          
+          if (hasGenerateMarker) {
+            // Extract generation prompt after GENERATE_IMAGE:
+            const markerMatch = assistantTextBuffer.match(/GENERATE_IMAGE:\s*(.+?)(?=\n\n|\n$|$)/s);
+            if (markerMatch) {
+              generationPrompt = markerMatch[1].trim();
+              console.log('Extracted generation prompt from marker:', generationPrompt.substring(0, 100) + '...');
+              
+              // Check if there's a recent image for transformation mode
+              for (let i = messages.length - 1; i >= Math.max(0, messages.length - 3); i--) {
+                if (messages[i].image_url) {
+                  originalImageUrl = messages[i].image_url;
+                  console.log('Found recent image for transformation mode');
+                  break;
                 }
               }
             }
-          } catch (error) {
-            console.error('Error in text-to-image generation:', error);
-          }
-        })().catch(err => console.error('Background text-to-image error:', err));
-      }
-
-      // 3. Handle IMAGE TRANSFORMATION (existing image)
-      if (shouldTransform) {
-        console.log('Transformation request detected, will generate image after response');
-        
-        (async () => {
-          try {
-            // Find the most recent image in the conversation
-            let originalImageUrl: string | null = null;
+          } else if (shouldTransform) {
+            // Fallback: if no marker but transformation intent detected
+            console.log('No GENERATE_IMAGE marker, but transformation intent detected - using fallback');
+            generationPrompt = lastUserMessage.content;
+            
+            // Find recent image
             for (let i = messages.length - 1; i >= 0; i--) {
               if (messages[i].image_url) {
                 originalImageUrl = messages[i].image_url;
                 break;
               }
             }
-
-            if (!originalImageUrl) {
-              console.error('No original image found for transformation');
-              return;
-            }
-
-            // Fetch project data for context
+          }
+          
+          // Generate image if we have a prompt
+          if (generationPrompt) {
+            console.log('Initiating image generation:', {
+              mode: originalImageUrl ? 'transformation' : 'text-to-image',
+              promptLength: generationPrompt.length
+            });
+            
+            // Get project data for context
             const { data: projectData } = await supabase
               .from("projects")
               .select("name, budget, style_preferences")
               .eq("id", projectId)
               .maybeSingle();
-
-            console.log('Calling generate-renovation-image for transformation...');
             
             const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
               method: 'POST',
@@ -720,34 +735,48 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
                 'Authorization': `Bearer ${supabaseKey}`,
               },
               body: JSON.stringify({
-                originalImageUrl,
-                transformationRequest: lastUserMessage.content,
-                projectContext: projectData
+                originalImageUrl: originalImageUrl || undefined,
+                transformationRequest: generationPrompt,
+                projectContext: projectData,
               }),
             });
 
             if (imageGenResponse.ok) {
               const { generatedImageUrl } = await imageGenResponse.json();
-              console.log('Image transformation generated successfully');
+              console.log('Image generation successful:', originalImageUrl ? 'transformation' : 'text-to-image');
 
-              // Save transformed image as new message
+              // Save generated image as new message
+              const messageContent = originalImageUrl
+                ? '✨ Here\'s your renovation transformation! This shows how your space could look with the changes we discussed. Would you like to try a different style or make adjustments?'
+                : '✨ Here\'s your custom design visualization! This photorealistic rendering brings your vision to life. Would you like me to generate variations with different styles, colors, or layouts?';
+                
               await supabase.from('messages').insert({
                 conversation_id: conversationId,
                 role: 'assistant',
-                content: '✨ Here\'s your renovation transformation! This shows how your space could look with the changes we discussed. Would you like to try a different style or make adjustments?',
+                content: messageContent,
                 image_url: generatedImageUrl
               });
 
-              console.log('Generated image message saved to database');
+              console.log('Generated image saved to conversation');
             } else {
               const errorText = await imageGenResponse.text();
-              console.error('Image transformation failed:', imageGenResponse.status, errorText);
+              console.error('Image generation failed:', imageGenResponse.status, errorText);
+              
+              // Inform user about the failure
+              await supabase.from('messages').insert({
+                conversation_id: conversationId,
+                role: 'assistant',
+                content: 'I apologize, but I encountered an issue generating the image. Please try again or rephrase your request with more specific details about the design you\'d like to see.'
+              });
             }
-          } catch (error) {
-            console.error('Error generating transformation image:', error);
+          } else {
+            console.log('No image generation triggered - no marker or transformation intent');
           }
-        })().catch(err => console.error('Background transformation error:', err));
-      }
+        } catch (error) {
+          console.error('Error in background image generation:', error);
+        }
+      })().catch(err => console.error('Background processing error:', err));
+
 
       // Return the client stream immediately
       return new Response(streamClient, {
