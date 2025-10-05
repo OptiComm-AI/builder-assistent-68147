@@ -9,7 +9,7 @@ interface MessageContentProps {
 
 export const MessageContent = ({ content }: MessageContentProps) => {
   return (
-    <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+    <div className="text-sm leading-relaxed break-words overflow-wrap-anywhere">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -32,7 +32,7 @@ export const MessageContent = ({ content }: MessageContentProps) => {
         
         // Paragraphs
         p: ({ children }) => (
-          <p className="mb-4 last:mb-0 text-foreground/90 whitespace-pre-wrap">
+          <p className="mb-4 last:mb-0 text-foreground/90 whitespace-pre-wrap break-words overflow-hidden">
             {children}
           </p>
         ),
@@ -49,7 +49,7 @@ export const MessageContent = ({ content }: MessageContentProps) => {
           </ol>
         ),
         li: ({ children }) => (
-          <li className="ml-4">{children}</li>
+          <li className="ml-4 break-words">{children}</li>
         ),
         
         // Code blocks
@@ -112,7 +112,7 @@ export const MessageContent = ({ content }: MessageContentProps) => {
         
         // Strong and emphasis
         strong: ({ children }) => (
-          <strong className="font-bold text-foreground">{children}</strong>
+          <strong className="font-bold text-foreground break-words">{children}</strong>
         ),
         em: ({ children }) => (
           <em className="italic">{children}</em>

@@ -602,11 +602,11 @@ const AIChat = ({
                     </div>
                   )}
                   
-                  <div className={`max-w-md px-4 py-3 rounded-2xl ${
-                    message.role === "user" 
-                      ? "bg-primary text-primary-foreground ml-auto" 
-                      : "bg-card border border-border/50"
-                  }`}>
+                <div className={`max-w-[calc(100%-3rem)] px-4 py-3 rounded-2xl break-words overflow-hidden ${
+                  message.role === "user" 
+                    ? "bg-primary text-primary-foreground ml-auto" 
+                    : "bg-card border border-border/50"
+                }`}>
                     {message.image_url && (
                       <img
                         src={message.image_url}
