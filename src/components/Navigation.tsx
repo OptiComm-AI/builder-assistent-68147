@@ -44,6 +44,9 @@ const Navigation = () => {
             <a href="#how-it-works" className="text-sm font-medium hover:text-primary transition-smooth">
               How It Works
             </a>
+            <button onClick={() => navigate("/about")} className="text-sm font-medium hover:text-primary transition-smooth">
+              About Us
+            </button>
             <button onClick={() => navigate("/chat")} className="text-sm font-medium hover:text-primary transition-smooth">
               AI Chat
             </button>

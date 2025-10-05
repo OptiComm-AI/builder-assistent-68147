@@ -12,6 +12,7 @@ const NewProject = lazy(() => import("./pages/NewProject"));
 const ProjectDetail = lazy(() => import("./pages/ProjectDetail"));
 const Chat = lazy(() => import("./pages/Chat"));
 const Admin = lazy(() => import("./pages/Admin"));
+const About = lazy(() => import("./pages/About"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/chat" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}><Chat /></Suspense>} />
           <Route path="/chat/:conversationId" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}><Chat /></Suspense>} />
           <Route path="/admin" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}><Admin /></Suspense>} />
+          <Route path="/about" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}><About /></Suspense>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}><NotFound /></Suspense>} />
         </Routes>
