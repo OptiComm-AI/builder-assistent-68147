@@ -79,6 +79,17 @@ function detectLanguage(text: string): string {
   return detectedLang;
 }
 
+function shouldGenerateTransformation(message: string): boolean {
+  const transformationKeywords = [
+    'transform', 'change', 'modernize', 'renovate', 'simulate',
+    'show me', 'different', 'variation', 'makeover', 'redesign',
+    'update', 'upgrade', 'replace', 'swap', 'try', 'what if',
+    'how would', 'can you show', 'visualize', 'imagine'
+  ];
+  const lowerMessage = message.toLowerCase();
+  return transformationKeywords.some(keyword => lowerMessage.includes(keyword));
+}
+
 // Background function to extract and update project data
 async function extractProjectInfoAsync(
   supabase: any,
@@ -518,6 +529,76 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
       return new Response(stream1, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
+    }
+
+    // Check if we should generate an image transformation
+    const lastUserMessage = messages[messages.length - 1];
+    const hasRecentImage = messages.slice(-3).some((m: any) => m.image_url);
+    
+    if (hasRecentImage && lastUserMessage && shouldGenerateTransformation(lastUserMessage.content)) {
+      console.log('Transformation request detected, will generate image after response');
+      
+      // Find the most recent image in the conversation
+      let originalImageUrl: string | null = null;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].image_url) {
+          originalImageUrl = messages[i].image_url;
+          break;
+        }
+      }
+
+      // Fetch project data for context
+      let projectData = null;
+      if (projectId) {
+        const { data } = await supabase
+          .from("projects")
+          .select("name, budget, style_preferences")
+          .eq("id", projectId)
+          .single();
+        projectData = data;
+      }
+
+      if (originalImageUrl) {
+        // Start image generation in background after streaming completes
+        (async () => {
+          try {
+            console.log('Calling generate-renovation-image function...');
+            
+            const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseKey}`,
+              },
+              body: JSON.stringify({
+                originalImageUrl,
+                transformationRequest: lastUserMessage.content,
+                projectContext: projectData
+              }),
+            });
+
+            if (imageGenResponse.ok) {
+              const { generatedImageUrl } = await imageGenResponse.json();
+              console.log('Image transformation generated successfully');
+
+              // Save a follow-up message with the generated image
+              await supabase.from('messages').insert({
+                conversation_id: conversationId,
+                role: 'assistant',
+                content: '✨ Here\'s your renovation transformation! This shows how your space could look with the changes we discussed. Would you like to try a different style or make adjustments?',
+                image_url: generatedImageUrl
+              });
+
+              console.log('Generated image message saved to database');
+            } else {
+              const errorText = await imageGenResponse.text();
+              console.error('Image generation failed:', imageGenResponse.status, errorText);
+            }
+          } catch (error) {
+            console.error('Error generating transformation image:', error);
+          }
+        })().catch(err => console.error('Background image generation error:', err));
+      }
     }
 
     return new Response(response.body, {

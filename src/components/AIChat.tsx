@@ -17,6 +17,7 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   image_url?: string;
+  isGeneratedImage?: boolean;
 }
 
 interface ProjectData {
@@ -853,12 +854,20 @@ const AIChat = ({
                     : "bg-card border border-border/50"
                 }`} style={{ overflowWrap: 'break-word' }}>
                     {message.image_url && (
-                      <img
-                        src={message.image_url}
-                        alt="Uploaded"
-                        className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(message.image_url, '_blank')}
-                      />
+                      <div className="relative">
+                        <img
+                          src={message.image_url}
+                          alt={message.isGeneratedImage ? "AI Generated Transformation" : "Uploaded"}
+                          className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(message.image_url, '_blank')}
+                        />
+                        {message.content.includes('✨') && message.role === 'assistant' && (
+                          <div className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-semibold shadow-lg flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            AI Generated
+                          </div>
+                        )}
+                      </div>
                     )}
                     <MessageContent content={message.content} />
                   </div>

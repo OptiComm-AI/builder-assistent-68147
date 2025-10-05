@@ -1,1 +1,13 @@
 project_id = "bpiszjonzbhexjsxoohy"
+
+[functions.generate-renovation-image]
+verify_jwt = false
+
+[functions.generate-conversation-summary]
+verify_jwt = false
+
+[functions.extract-project-info]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = false
