@@ -10,7 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const sb = supabase as unknown as any;
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, Sparkles, Package } from "lucide-react";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, Sparkles, Package, MessageSquare } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import AIChat from "@/components/AIChat";
 import ProjectMaterials from "@/components/ProjectMaterials";
@@ -124,76 +126,102 @@ const ProjectDetail = () => {
         </div>
       )}
 
-      {/* Desktop: Two-column layout. Mobile: Tabs */}
-      <div className="container mx-auto px-4 py-6">
-        {/* Mobile: Tabs */}
-        <div className="lg:hidden">
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="details">Project Info</TabsTrigger>
-              <TabsTrigger value="materials">Materials</TabsTrigger>
-              <TabsTrigger value="chat">AI Chat</TabsTrigger>
-            </TabsList>
-            <TabsContent value="details" className="space-y-4">
-              <div className="mb-4">
-                <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
-                <Badge className={statusColors[project.status as keyof typeof statusColors]}>
-                  {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
-                </Badge>
-              </div>
-              {renderProjectDetails()}
-            </TabsContent>
-            <TabsContent value="materials" className="space-y-4">
-              <ProjectMaterials projectId={project.id} />
-            </TabsContent>
-            <TabsContent value="chat" className="h-[calc(100vh-12rem)]">
+      {/* Mobile: Collapsible sections */}
+      <div className="lg:hidden px-4 py-6 space-y-4">
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
+          <Badge className={statusColors[project.status as keyof typeof statusColors]}>
+            {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
+          </Badge>
+        </div>
+
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-card rounded-lg border">
+            <h2 className="text-lg font-semibold">Project Details</h2>
+            <Sparkles className="h-5 w-5" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4 space-y-4">
+            {renderProjectDetails()}
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-card rounded-lg border">
+            <h2 className="text-lg font-semibold">Materials & Shopping</h2>
+            <Package className="h-5 w-5" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4">
+            <ProjectMaterials projectId={project.id} />
+          </CollapsibleContent>
+        </Collapsible>
+
+        <Collapsible defaultOpen>
+          <CollapsibleTrigger className="flex items-center justify-between w-full p-4 bg-card rounded-lg border">
+            <h2 className="text-lg font-semibold">AI Chat</h2>
+            <MessageSquare className="h-5 w-5" />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-4">
+            <div className="h-[600px]">
               <AIChat 
                 projectId={project.id} 
                 mode="dedicated"
                 onProjectDataExtracted={handleProjectDataExtracted}
               />
-            </TabsContent>
-          </Tabs>
-        </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
-        {/* Desktop: Two-column */}
-        <div className="hidden lg:block">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
-            <Badge className={statusColors[project.status as keyof typeof statusColors]}>
-              {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
-            </Badge>
-          </div>
-          
-          <Tabs defaultValue="details" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="details">Project Details</TabsTrigger>
-              <TabsTrigger value="materials">
-                <Package className="w-4 h-4 mr-2" />
-                Materials & Shopping
-              </TabsTrigger>
-              <TabsTrigger value="chat">AI Chat</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="details" className="space-y-6">
-              {renderProjectDetails()}
-            </TabsContent>
-            
-            <TabsContent value="materials">
+      {/* Desktop: Three-column resizable layout */}
+      <div className="hidden lg:block h-[calc(100vh-8rem)]">
+        <ResizablePanelGroup direction="horizontal" className="w-full">
+          {/* LEFT COLUMN - Project Info */}
+          <ResizablePanel defaultSize={25} minSize={20} maxSize={35}>
+            <div className="h-full overflow-y-auto px-4 py-6 pr-2">
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold mb-2">{project.name}</h1>
+                <Badge className={statusColors[project.status as keyof typeof statusColors]}>
+                  {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
+                </Badge>
+              </div>
+              <div className="space-y-6">
+                {renderProjectDetails()}
+              </div>
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* CENTER COLUMN - Materials & Shopping */}
+          <ResizablePanel defaultSize={40} minSize={30} maxSize={50}>
+            <div className="h-full overflow-y-auto px-4 py-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Materials & Shopping</h2>
+              </div>
               <ProjectMaterials projectId={project.id} />
-            </TabsContent>
-            
-            <TabsContent value="chat">
-              <div className="h-[calc(100vh-16rem)]">
+            </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
+
+          {/* RIGHT COLUMN - AI Chat */}
+          <ResizablePanel defaultSize={35} minSize={25} maxSize={45}>
+            <div className="h-full flex flex-col px-4 py-6 pl-2">
+              <div className="flex items-center gap-2 mb-4">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">AI Assistant</h2>
+              </div>
+              <div className="flex-1 overflow-hidden">
                 <AIChat 
                   projectId={project.id} 
                   mode="dedicated"
                   onProjectDataExtracted={handleProjectDataExtracted}
                 />
               </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
     </div>
   );
