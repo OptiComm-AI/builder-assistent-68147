@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, FolderKanban, Clock, CheckCircle2 } from "lucide-react";
+import { Plus, FolderKanban, Clock, CheckCircle2, MessageSquare } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -99,10 +99,16 @@ const Dashboard = () => {
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-2xl font-bold">Your Projects</h3>
-          <Button onClick={() => navigate("/projects/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Project
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/chat")}>
+              <MessageSquare className="mr-2 h-4 w-4" />
+              AI Chat
+            </Button>
+            <Button onClick={() => navigate("/projects/new")}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Project
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

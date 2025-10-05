@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Send, Sparkles, User, Bot, Image as ImageIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import aiIcon from "@/assets/ai-icon.png";
 
 interface Message {
@@ -12,17 +13,20 @@ interface Message {
   image_url?: string;
 }
 
-const AIChat = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
-    }
-  ]);
+interface AIChatProps {
+  conversationId?: string;
+  projectId?: string;
+  onConversationCreated?: (conversationId: string) => void;
+}
+
+const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProps) => {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(conversationId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -34,6 +38,77 @@ const AIChat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Load conversation messages
+  useEffect(() => {
+    if (!conversationId) {
+      setMessages([{
+        role: "assistant",
+        content: "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
+      }]);
+      setCurrentConversationId(undefined);
+      return;
+    }
+
+    const loadMessages = async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
+
+      if (error) {
+        console.error("Error loading messages:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setMessages(data.map(msg => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content,
+          image_url: msg.image_url || undefined
+        })));
+      } else {
+        setMessages([{
+          role: "assistant",
+          content: "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
+        }]);
+      }
+      setCurrentConversationId(conversationId);
+    };
+
+    loadMessages();
+  }, [conversationId]);
+
+  // Realtime message updates
+  useEffect(() => {
+    if (!currentConversationId) return;
+
+    const channel = supabase
+      .channel(`messages-${currentConversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${currentConversationId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as any;
+          setMessages(prev => [...prev, {
+            role: newMessage.role,
+            content: newMessage.content,
+            image_url: newMessage.image_url || undefined
+          }]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentConversationId]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,7 +175,51 @@ const AIChat = () => {
     }
   };
 
-  const streamChat = async (messagesToSend: Message[]) => {
+  const createConversation = async (firstMessage: string): Promise<string | null> => {
+    if (!user) return null;
+
+    const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "");
+    
+    const { data, error } = await supabase
+      .from("conversations")
+      .insert({
+        user_id: user.id,
+        project_id: projectId,
+        title: title
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating conversation:", error);
+      return null;
+    }
+
+    return data.id;
+  };
+
+  const saveMessage = async (convId: string, message: Message) => {
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        conversation_id: convId,
+        role: message.role,
+        content: message.content,
+        image_url: message.image_url
+      });
+
+    if (error) {
+      console.error("Error saving message:", error);
+    }
+
+    // Update conversation timestamp
+    await supabase
+      .from("conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", convId);
+  };
+
+  const streamChat = async (messagesToSend: Message[], convId: string) => {
     setIsLoading(true);
     let assistantContent = "";
 
@@ -114,7 +233,9 @@ const AIChat = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ 
-          messages: messagesToSend
+          messages: messagesToSend,
+          conversationId: convId,
+          projectId: projectId
         }),
       });
 
@@ -184,7 +305,6 @@ const AIChat = () => {
               });
             }
           } catch (e) {
-            // Incomplete JSON, put it back and wait for more data
             textBuffer = line + "\n" + textBuffer;
             break;
           }
@@ -215,6 +335,14 @@ const AIChat = () => {
           } catch {}
         }
       }
+
+      // Save the final assistant message
+      if (assistantContent) {
+        await saveMessage(convId, {
+          role: "assistant",
+          content: assistantContent
+        });
+      }
     } catch (error) {
       console.error("Chat error:", error);
       toast({
@@ -222,7 +350,6 @@ const AIChat = () => {
         description: "Failed to send message. Please try again.",
         variant: "destructive",
       });
-      // Remove the empty assistant message on error
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
@@ -230,7 +357,7 @@ const AIChat = () => {
   };
 
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImage) || isLoading) return;
+    if ((!input.trim() && !selectedImage) || isLoading || !user) return;
     
     let imageUrl: string | null = null;
 
@@ -245,29 +372,38 @@ const AIChat = () => {
       ...(imageUrl && { image_url: imageUrl })
     };
 
+    // Create conversation if needed
+    let convId = currentConversationId;
+    if (!convId) {
+      convId = await createConversation(userMessage.content);
+      if (!convId) {
+        toast({
+          title: "Error",
+          description: "Failed to create conversation",
+          variant: "destructive",
+        });
+        return;
+      }
+      setCurrentConversationId(convId);
+      onConversationCreated?.(convId);
+    }
+
+    // Save user message
+    await saveMessage(convId, userMessage);
+
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     setInput("");
     clearImage();
     
-    streamChat(updatedMessages);
+    streamChat(updatedMessages, convId);
   };
 
   return (
-    <section className="py-24">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12 space-y-4">
-          <h2 className="text-4xl lg:text-5xl font-bold">
-            Chat With Your
-            <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent"> AI Designer</span>
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Describe your vision in plain language. Get expert guidance instantly.
-          </p>
-        </div>
-        
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-card border border-border/50 rounded-2xl shadow-elegant overflow-hidden">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-4xl h-full flex flex-col">
+          <div className="bg-card border border-border/50 rounded-2xl shadow-elegant overflow-hidden flex flex-col h-full">
             {/* Chat header */}
             <div className="gradient-hero p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
@@ -283,7 +419,7 @@ const AIChat = () => {
             </div>
             
             {/* Messages */}
-            <div className="h-96 overflow-y-auto p-6 space-y-4 bg-muted/20">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/20">
               {messages.map((message, index) => (
                 <div 
                   key={index}
@@ -381,7 +517,7 @@ const AIChat = () => {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 };
 

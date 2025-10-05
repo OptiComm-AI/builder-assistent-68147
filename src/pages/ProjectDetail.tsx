@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, DollarSign, Edit, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ProjectDetail = () => {
@@ -92,6 +92,13 @@ const ProjectDetail = () => {
             </Badge>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="default"
+              onClick={() => navigate(`/chat?projectId=${project.id}`)}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Chat About This Project
+            </Button>
             <Button variant="outline" size="icon">
               <Edit className="h-4 w-4" />
             </Button>
