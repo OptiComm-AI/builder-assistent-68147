@@ -71,6 +71,25 @@ const AIChat = ({
     setCurrentProjectId(projectId);
   }, [projectId]);
 
+  // Auto-load most recent conversation for project in dedicated mode
+  useEffect(() => {
+    if (mode === 'dedicated' && currentProjectId && user && !conversationId) {
+      supabase
+        .from('conversations')
+        .select('id')
+        .eq('project_id', currentProjectId)
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single()
+        .then(({ data, error }) => {
+          if (data && !error) {
+            setCurrentConversationId(data.id);
+          }
+        });
+    }
+  }, [mode, currentProjectId, user, conversationId]);
+
   // Fetch user's projects for project selector
   useEffect(() => {
     if (user && mode === 'homepage') {
@@ -649,6 +668,14 @@ const AIChat = ({
     }
   };
 
+  const handleNewChat = () => {
+    setCurrentConversationId(undefined);
+    setMessages([{
+      role: "assistant",
+      content: "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
+    }]);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {showSignupPrompt && mode === 'homepage' && !user && (
@@ -670,17 +697,29 @@ const AIChat = ({
         <div className={mode === 'dedicated' ? "w-full h-full flex flex-col" : "w-full max-w-4xl h-full flex flex-col"}>
           <div className={`bg-card border border-border/50 overflow-hidden flex flex-col h-full ${mode === 'dedicated' ? 'rounded-lg' : 'rounded-2xl shadow-elegant'}`}>
             {/* Chat header */}
-            <div className="gradient-hero p-6 flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
-                <img src={aiIcon} alt="AI Assistant" className="w-8 h-8" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-primary-foreground">AI Project Assistant</h3>
-                <div className="flex items-center gap-2 text-sm text-primary-foreground/80">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  Online & Ready
+            <div className="gradient-hero p-6 flex items-center gap-4 justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
+                  <img src={aiIcon} alt="AI Assistant" className="w-8 h-8" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-primary-foreground">AI Project Assistant</h3>
+                  <div className="flex items-center gap-2 text-sm text-primary-foreground/80">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    Online & Ready
+                  </div>
                 </div>
               </div>
+              {mode === 'dedicated' && currentConversationId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNewChat}
+                  className="bg-white/10 hover:bg-white/20 text-primary-foreground border-white/20"
+                >
+                  New Chat
+                </Button>
+              )}
             </div>
             
             {/* Project Context Display */}

@@ -7,6 +7,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple language detection based on common words
+function detectLanguage(text: string): string {
+  const lowerText = text.toLowerCase();
+  
+  // English detection
+  if (/\b(the|is|are|to|of|and|a|in|that|have|it|for|not|on|with|he|as|you|do|at|this|but|his|by|from)\b/.test(lowerText)) {
+    return "English";
+  }
+  
+  // Romanian detection
+  if (/\b(este|sunt|de|și|în|cu|la|pentru|un|o|pe|ce|mai|din|care|să|fi|ai|era|cel|lui|dar|dacă|când)\b/.test(lowerText)) {
+    return "Romanian";
+  }
+  
+  // Spanish detection
+  if (/\b(el|la|de|que|y|a|en|un|ser|se|no|haber|por|con|su|para|como|estar|tener|le|lo|todo|pero|más)\b/.test(lowerText)) {
+    return "Spanish";
+  }
+  
+  // French detection
+  if (/\b(le|de|un|être|et|à|il|avoir|ne|je|son|que|se|qui|ce|dans|en|du|elle|au|pour|pas|que|vous)\b/.test(lowerText)) {
+    return "French";
+  }
+  
+  // German detection
+  if (/\b(der|die|und|in|den|von|zu|das|mit|sich|des|auf|für|ist|im|dem|nicht|ein|eine|als|auch|es|an)\b/.test(lowerText)) {
+    return "German";
+  }
+  
+  // Default to English if no pattern matches
+  return "English";
+}
+
 // Background function to extract and update project data
 async function extractProjectInfoAsync(
   supabase: any,
@@ -191,16 +224,15 @@ serve(async (req) => {
       }
     }
 
+    // Detect user's language from their last message
+    const userLastMessage = messages[messages.length - 1]?.content || "";
+    const detectedLanguage = detectLanguage(userLastMessage);
+    
     // Build system prompt based on authentication status and onboarding needs
-    let systemPrompt = "";
+    let systemPrompt = `CRITICAL LANGUAGE INSTRUCTION: The user is writing in ${detectedLanguage}. You MUST respond ONLY in ${detectedLanguage}. Never switch languages unless the user explicitly switches.\n\n`;
     
     if (needsOnboarding && isAuthenticated) {
-      systemPrompt = `You are an AI Project Discovery Assistant conducting an intelligent, conversational onboarding for a renovation/design project.
-
-LANGUAGE POLICY:
-- You are multilingual - ALWAYS respond in the SAME language the user is using
-- Switch languages seamlessly as the user switches
-- Never limit yourself to specific languages - you speak ALL languages
+      systemPrompt += `You are an AI Project Discovery Assistant conducting an intelligent, conversational onboarding for a renovation/design project.
 
 YOUR APPROACH:
 - Ask ONE targeted discovery question at a time (never multiple questions)
@@ -235,14 +267,7 @@ I'll keep learning about your project as we chat. What would you like to discuss
 
 Be conversational, warm, and proactive in your guidance.`;
     } else if (isAuthenticated) {
-      systemPrompt = `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
-
-LANGUAGE POLICY:
-- You are multilingual and can communicate in ANY language the user prefers
-- ALWAYS respond in the SAME language the user is using
-- If user switches languages, switch with them immediately
-- Common languages: English, Spanish, Romanian, French, German, Italian, Portuguese, and many more
-- Never tell users you only speak certain languages - you speak ALL languages
+      systemPrompt += `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
 
 Your capabilities:
 ${hasImages ? `
@@ -264,13 +289,7 @@ ${hasImages ? `
 
 Always be helpful, practical, and proactive in your suggestions.`;
     } else {
-      systemPrompt = `You are a friendly AI assistant helping users plan their renovation or design project.
-
-LANGUAGE POLICY:
-- You are multilingual and can communicate in ANY language the user prefers
-- ALWAYS respond in the SAME language the user is using
-- If user switches languages, switch with them immediately
-- Never tell users you only speak certain languages - you speak ALL languages
+      systemPrompt += `You are a friendly AI assistant helping users plan their renovation or design project.
 
 After discussing their ideas for 3-5 messages, GENTLY suggest they create an account to save their progress and get personalized project management features. Be encouraging but not pushy.
 
