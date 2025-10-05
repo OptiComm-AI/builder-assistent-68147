@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import aiIcon from "@/assets/ai-icon.png";
 import ProjectSelector from "@/components/ProjectSelector";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MessageContent } from "@/components/MessageContent";
 
 interface Message {
   role: "user" | "assistant";
@@ -614,7 +615,7 @@ const AIChat = ({
                         onClick={() => window.open(message.image_url, '_blank')}
                       />
                     )}
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                    <MessageContent content={message.content} />
                   </div>
                   
                   {message.role === "user" && (
