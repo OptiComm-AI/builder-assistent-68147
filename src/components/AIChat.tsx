@@ -1058,47 +1058,32 @@ const AIChat = ({
               </div>
             )}
             
-            {/* BOM Management Tabs */}
+            {/* BOM Success Message */}
             {currentBomId && (
-              <div className="border-t border-border/50 bg-muted/20 max-h-[500px] overflow-hidden">
-                <Tabs defaultValue="bom" className="h-full flex flex-col">
-                  <TabsList className="w-full justify-start rounded-none border-b bg-card/50">
-                    <TabsTrigger value="bom">Bill of Materials</TabsTrigger>
-                    <TabsTrigger value="products">Product Search</TabsTrigger>
-                    <TabsTrigger value="shopping">Shopping List</TabsTrigger>
-                  </TabsList>
-                  
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <TabsContent value="bom" className="mt-0">
-                      <BOMReview 
-                        bomId={currentBomId}
-                        onSearchProducts={handleSearchProducts}
-                      />
-                    </TabsContent>
-                    
-                    <TabsContent value="products" className="mt-0">
-                      {selectedBomItemId ? (
-                        <ProductSearch
-                          bomItemId={selectedBomItemId}
-                          onAddToList={() => {
-                            toast({ 
-                              title: "Added to shopping list",
-                              description: "Product has been added to your shopping list"
-                            });
-                          }}
-                        />
-                      ) : (
-                        <div className="text-center text-muted-foreground py-8">
-                          Select an item from the Bill of Materials to search for products
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="shopping" className="mt-0">
-                      <ShoppingList bomId={currentBomId} />
-                    </TabsContent>
+              <div className="p-4 border-t border-border/50 bg-primary/5">
+                <div className="flex items-start gap-3">
+                  <Package className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-1">Bill of Materials Generated! 🎉</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Your BOM is ready. View it in the Materials tab to search for products and create your shopping list.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        // Navigate to materials tab if in ProjectDetail
+                        const materialsTab = document.querySelector('[value="materials"]') as HTMLButtonElement;
+                        if (materialsTab) {
+                          materialsTab.click();
+                        }
+                      }}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Package className="w-4 h-4 mr-2" />
+                      View in Materials Tab
+                    </Button>
                   </div>
-                </Tabs>
+                </div>
               </div>
             )}
             

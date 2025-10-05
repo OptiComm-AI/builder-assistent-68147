@@ -10,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const sb = supabase as unknown as any;
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, Sparkles } from "lucide-react";
+import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, Sparkles, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AIChat from "@/components/AIChat";
+import ProjectMaterials from "@/components/ProjectMaterials";
 
 const ProjectDetail = () => {
   const navigate = useNavigate();
@@ -128,8 +129,9 @@ const ProjectDetail = () => {
         {/* Mobile: Tabs */}
         <div className="lg:hidden">
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="details">Project Info</TabsTrigger>
+              <TabsTrigger value="materials">Materials</TabsTrigger>
               <TabsTrigger value="chat">AI Chat</TabsTrigger>
             </TabsList>
             <TabsContent value="details" className="space-y-4">
@@ -140,6 +142,9 @@ const ProjectDetail = () => {
                 </Badge>
               </div>
               {renderProjectDetails()}
+            </TabsContent>
+            <TabsContent value="materials" className="space-y-4">
+              <ProjectMaterials projectId={project.id} />
             </TabsContent>
             <TabsContent value="chat" className="h-[calc(100vh-12rem)]">
               <AIChat 
@@ -152,24 +157,42 @@ const ProjectDetail = () => {
         </div>
 
         {/* Desktop: Two-column */}
-        <div className="hidden lg:grid lg:grid-cols-[1fr_600px] lg:gap-6">
-          <div className="space-y-6">
-            <div className="mb-4">
-              <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
-              <Badge className={statusColors[project.status as keyof typeof statusColors]}>
-                {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
-              </Badge>
-            </div>
-            {renderProjectDetails()}
+        <div className="hidden lg:block">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
+            <Badge className={statusColors[project.status as keyof typeof statusColors]}>
+              {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
+            </Badge>
           </div>
           
-          <div className="sticky top-6 h-[calc(100vh-12rem)]">
-            <AIChat 
-              projectId={project.id} 
-              mode="dedicated"
-              onProjectDataExtracted={handleProjectDataExtracted}
-            />
-          </div>
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="details">Project Details</TabsTrigger>
+              <TabsTrigger value="materials">
+                <Package className="w-4 h-4 mr-2" />
+                Materials & Shopping
+              </TabsTrigger>
+              <TabsTrigger value="chat">AI Chat</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="details" className="space-y-6">
+              {renderProjectDetails()}
+            </TabsContent>
+            
+            <TabsContent value="materials">
+              <ProjectMaterials projectId={project.id} />
+            </TabsContent>
+            
+            <TabsContent value="chat">
+              <div className="h-[calc(100vh-16rem)]">
+                <AIChat 
+                  projectId={project.id} 
+                  mode="dedicated"
+                  onProjectDataExtracted={handleProjectDataExtracted}
+                />
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

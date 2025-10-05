@@ -13,7 +13,14 @@ serve(async (req) => {
 
   try {
     const { conversationId, projectId } = await req.json();
-    console.log('Generating BOM for project:', projectId);
+    console.log('Generating BOM for project:', projectId, 'conversation:', conversationId || 'none');
+
+    if (!projectId) {
+      return new Response(
+        JSON.stringify({ error: 'projectId is required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -21,14 +28,18 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch conversation messages
-    const { data: messages, error: messagesError } = await supabase
-      .from('messages')
-      .select('role, content, image_url')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+    // Fetch conversation messages if conversationId is provided
+    let messages: any[] = [];
+    if (conversationId) {
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('role, content, image_url')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
 
-    if (messagesError) throw messagesError;
+      if (messagesError) throw messagesError;
+      messages = messagesData || [];
+    }
 
     // Fetch project details
     const { data: project, error: projectError } = await supabase
@@ -39,12 +50,15 @@ serve(async (req) => {
 
     if (projectError) throw projectError;
 
-    console.log('Fetched messages:', messages?.length, 'project:', project?.name);
+    console.log('Fetched messages:', messages?.length || 0, 'project:', project?.name);
 
     // Create context for AI
-    const conversationContext = messages
-      ?.map(m => `${m.role}: ${m.content}`)
-      .join('\n') || '';
+    let conversationContext = '';
+    if (messages && messages.length > 0) {
+      conversationContext = messages
+        .map(m => `${m.role}: ${m.content}`)
+        .join('\n');
+    }
 
     const projectContext = `
 Project: ${project.name}
@@ -56,13 +70,11 @@ Features: ${project.key_features?.join(', ') || 'Not specified'}
     `.trim();
 
     // Call Lovable AI to generate BOM
-    const aiPrompt = `Based on the following renovation project conversation and details, generate a detailed Bill of Materials (BOM).
+    const aiPrompt = `Based on the following renovation project ${conversationContext ? 'conversation and details' : 'details'}, generate a detailed Bill of Materials (BOM).
 
 ${projectContext}
 
-Conversation:
-${conversationContext}
-
+${conversationContext ? `Conversation:\n${conversationContext}\n` : ''}
 Generate a comprehensive BOM with items categorized by: Flooring, Cabinetry, Appliances, Lighting, Plumbing, Paint & Finishes, Hardware, and Other.
 
 For each item provide:
@@ -152,7 +164,7 @@ For each item provide:
       .from('bills_of_material')
       .insert({
         project_id: projectId,
-        conversation_id: conversationId,
+        conversation_id: conversationId || null,
         total_estimated_cost: totalCost,
         status: 'draft'
       })
