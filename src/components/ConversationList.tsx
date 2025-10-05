@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquarePlus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
@@ -14,26 +15,62 @@ interface Conversation {
   created_at: string;
   project_id: string | null;
   updated_at: string;
+  summary: string | null;
+}
+
+interface Project {
+  id: string;
+  name: string;
 }
 
 interface ConversationListProps {
   selectedConversationId?: string;
+  selectedProjectId?: string;
   onSelectConversation: (conversationId: string, projectId?: string) => void;
   onNewConversation: () => void;
+  onSelectProject?: (projectId: string) => void;
 }
 
-const ConversationList = ({ selectedConversationId, onSelectConversation, onNewConversation }: ConversationListProps) => {
+const ConversationList = ({ 
+  selectedConversationId, 
+  selectedProjectId,
+  onSelectConversation, 
+  onNewConversation,
+  onSelectProject 
+}: ConversationListProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [filterProjectId, setFilterProjectId] = useState<string>(selectedProjectId || "all");
 
-  const { data: conversations, refetch } = useQuery({
-    queryKey: ["conversations", user?.id],
+  const { data: projects } = useQuery({
+    queryKey: ["projects", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
+        .from("projects")
+        .select("id, name")
+        .order("name");
+      
+      if (error) throw error;
+      return data as Project[];
+    },
+    enabled: !!user,
+  });
+
+  const { data: conversations, refetch } = useQuery({
+    queryKey: ["conversations", user?.id, filterProjectId],
+    queryFn: async () => {
+      let query = supabase
         .from("conversations")
         .select("*")
         .order("updated_at", { ascending: false });
       
+      if (filterProjectId === "unlinked") {
+        query = query.is("project_id", null);
+      } else if (filterProjectId !== "all") {
+        query = query.eq("project_id", filterProjectId);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as Conversation[];
     },
@@ -94,7 +131,7 @@ const ConversationList = ({ selectedConversationId, onSelectConversation, onNewC
 
   return (
     <div className="w-80 border-r bg-muted/20 flex flex-col">
-      <div className="p-4 border-b">
+      <div className="p-4 border-b space-y-3">
         <Button 
           onClick={onNewConversation} 
           className="w-full"
@@ -103,6 +140,29 @@ const ConversationList = ({ selectedConversationId, onSelectConversation, onNewC
           <MessageSquarePlus className="mr-2 h-4 w-4" />
           New Conversation
         </Button>
+
+        <Select
+          value={filterProjectId}
+          onValueChange={(value) => {
+            setFilterProjectId(value);
+            if (onSelectProject) {
+              onSelectProject(value);
+            }
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Filter by project" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Conversations</SelectItem>
+            <SelectItem value="unlinked">Unlinked</SelectItem>
+            {projects?.map((project) => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <ScrollArea className="flex-1">

@@ -10,10 +10,11 @@ const Chat = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { conversationId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const projectIdFromUrl = searchParams.get('projectId');
   const [selectedConversationId, setSelectedConversationId] = useState<string | undefined>(conversationId);
   const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(projectIdFromUrl || undefined);
+  const [filterProjectId, setFilterProjectId] = useState<string>("all");
 
   useEffect(() => {
     if (!loading && !user) {
@@ -32,15 +33,21 @@ const Chat = () => {
       {/* Conversation List Sidebar */}
       <ConversationList
         selectedConversationId={selectedConversationId}
+        selectedProjectId={filterProjectId}
         onSelectConversation={(id, projectId) => {
           setSelectedConversationId(id);
           setSelectedProjectId(projectId);
-          navigate(`/chat/${id}`);
+          const params = new URLSearchParams();
+          if (projectId) params.set('projectId', projectId);
+          navigate(`/chat/${id}${params.toString() ? `?${params.toString()}` : ''}`);
         }}
         onNewConversation={() => {
           setSelectedConversationId(undefined);
           setSelectedProjectId(undefined);
           navigate('/chat');
+        }}
+        onSelectProject={(projectId) => {
+          setFilterProjectId(projectId);
         }}
       />
 
