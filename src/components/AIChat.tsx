@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import aiIcon from "@/assets/ai-icon.png";
+import ProjectSelector from "@/components/ProjectSelector";
 
 interface Message {
   role: "user" | "assistant";
@@ -48,6 +49,7 @@ const AIChat = ({
   const [currentProjectId, setCurrentProjectId] = useState<string | undefined>(projectId);
   const [messageCount, setMessageCount] = useState(0);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
+  const [userProjects, setUserProjects] = useState<{id: string, name: string}[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -60,6 +62,20 @@ const AIChat = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Fetch user's projects for project selector
+  useEffect(() => {
+    if (user && mode === 'homepage') {
+      supabase
+        .from('projects')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          if (data) setUserProjects(data);
+        });
+    }
+  }, [user, mode]);
 
   // Load conversation messages or localStorage for anonymous users
   useEffect(() => {
@@ -517,6 +533,14 @@ const AIChat = ({
     streamChat(updatedMessages, convId);
   };
 
+  const handleProjectSelect = (projectId: string) => {
+    if (projectId === 'new') {
+      setCurrentProjectId(undefined);
+    } else {
+      setCurrentProjectId(projectId);
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {showSignupPrompt && mode === 'homepage' && !user && (
@@ -550,6 +574,18 @@ const AIChat = ({
                 </div>
               </div>
             </div>
+            
+            {/* Project Selector for logged-in users on homepage */}
+            {user && mode === 'homepage' && (
+              <div className="p-4 border-b border-border/50 bg-card">
+                <ProjectSelector
+                  projects={userProjects}
+                  selectedProjectId={currentProjectId}
+                  onProjectSelect={handleProjectSelect}
+                  disabled={isLoading}
+                />
+              </div>
+            )}
             
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/20">
