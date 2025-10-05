@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 const ComparisonTable = () => {
   const competitors = [
     {
-      name: "RenovateAI",
+      name: "RenobuildAI",
       aiPlanning: true,
       autoBOM: true,
       multiVendor: true,

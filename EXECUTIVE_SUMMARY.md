@@ -1,7 +1,7 @@
-# RenovateAI - Executive Summary
+# RenobuildAI - Executive Summary
 
 ## Company Overview
-**RenovateAI** is an AI-powered renovation co-pilot platform that transforms how homeowners plan, budget, and execute renovation projects. We combine conversational AI, automated bill-of-materials generation, and intelligent multi-vendor product matching to deliver professional-grade renovation planning accessible to everyone.
+**RenobuildAI** is an AI-powered renovation co-pilot platform that transforms how homeowners plan, budget, and execute renovation projects. We combine conversational AI, automated bill-of-materials generation, and intelligent multi-vendor product matching to deliver professional-grade renovation planning accessible to everyone.
 
 ---
 
@@ -15,7 +15,7 @@ The $1.8T global home improvement market is plagued by inefficiency:
 ---
 
 ## Our Solution
-RenovateAI deploys an AI renovation assistant that:
+RenobuildAI deploys an AI renovation assistant that:
 1. **Plans** renovations through natural conversation (multilingual support)
 2. **Generates** detailed, itemized bills-of-materials automatically
 3. **Searches** multiple vendors simultaneously to find best prices and availability
@@ -72,7 +72,7 @@ RenovateAI deploys an AI renovation assistant that:
 ## Competitive Landscape
 | Platform | AI Planning | Auto BOM | Multi-Vendor | Design Gen | Our Advantage |
 |----------|-------------|----------|--------------|------------|---------------|
-| **RenovateAI** | ✅ | ✅ | ✅ | ✅ | **Complete end-to-end solution** |
+| **RenobuildAI** | ✅ | ✅ | ✅ | ✅ | **Complete end-to-end solution** |
 | Houzz | ❌ | ❌ | ❌ | ✅ | Inspiration only, no execution |
 | Home Depot | ❌ | ❌ | ❌ | ❌ | Single vendor lock-in |
 | Manual Planning | ❌ | ❌ | ❌ | ❌ | Time-intensive, error-prone |
@@ -121,8 +121,8 @@ Experienced team with backgrounds in AI/ML, construction technology, and marketp
 
 **Contact:**  
 [Your Name], Founder & CEO  
-[email@renovateai.com](mailto:email@renovateai.com) | [www.renovateai.com](https://www.renovateai.com)  
+[email@renobuildai.com](mailto:email@renobuildai.com) | [www.renobuildai.com](https://www.renobuildai.com)  
 
 ---
 
-*"RenovateAI is to home renovation what TurboTax is to taxes—making the complex simple, the expensive affordable, and the stressful enjoyable."*
+*"RenobuildAI is to home renovation what TurboTax is to taxes—making the complex simple, the expensive affordable, and the stressful enjoyable."*

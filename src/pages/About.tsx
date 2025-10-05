@@ -5,31 +5,23 @@ import {
   TrendingUp,
   DollarSign,
   Users,
-  Bot,
-  ListChecks,
-  Search,
-  Wand2,
-  TrendingDown,
-  Languages,
   MessageSquare,
   Lightbulb,
   ShoppingCart,
   Hammer,
-  AlertCircle,
   CheckCircle,
-  Globe,
-  Rocket,
-  Target,
-  Zap,
-  Brain,
   ArrowRight,
+  Sparkles,
 } from "lucide-react";
 import StatCard from "@/components/about/StatCard";
-import FeatureCard from "@/components/about/FeatureCard";
-import TimelineCard from "@/components/about/TimelineCard";
 import ComparisonTable from "@/components/about/ComparisonTable";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
+import stressedImage from "@/assets/stressed-homeowner.jpg";
+import happyImage from "@/assets/happy-renovation.jpg";
+import aiInterfaceImage from "@/assets/ai-interface.jpg";
+import beforeAfterImage from "@/assets/before-after.jpg";
+import futureVisionImage from "@/assets/future-vision.jpg";
+import communityImage from "@/assets/community.jpg";
 
 const About = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -37,152 +29,6 @@ const About = () => {
   useEffect(() => {
     setIsVisible(true);
   }, []);
-
-  const features = [
-    {
-      icon: Bot,
-      title: "Conversational AI Planning",
-      description: "Natural language project planning powered by advanced AI models",
-    },
-    {
-      icon: ListChecks,
-      title: "Intelligent BOM Generation",
-      description: "Automated bill of materials with quantities, specs, and cost estimates",
-    },
-    {
-      icon: Search,
-      title: "Multi-Vendor Product Matching",
-      description: "Real-time price comparison across major retailers like Enmax and MaxBau",
-    },
-    {
-      icon: Wand2,
-      title: "Visual Design Generation",
-      description: "AI-powered renovation visualization to see your project before execution",
-    },
-    {
-      icon: TrendingDown,
-      title: "Smart Budget Optimization",
-      description: "18-25% average cost savings through intelligent product matching",
-    },
-    {
-      icon: Languages,
-      title: "Multilingual Support",
-      description: "Currently supporting English and Romanian with expansion planned",
-    },
-  ];
-
-  const steps = [
-    {
-      icon: MessageSquare,
-      title: "Inspiration",
-      description: "Describe your renovation vision through conversational AI",
-      details: "Natural language input, image uploads, style preferences",
-    },
-    {
-      icon: Lightbulb,
-      title: "Planning",
-      description: "AI generates detailed BOM with quantities and specifications",
-      details: "Automated calculations, material lists, timeline estimates",
-    },
-    {
-      icon: ShoppingCart,
-      title: "Procurement",
-      description: "Multi-vendor search finds best prices across retailers",
-      details: "Real-time pricing, availability checks, cost comparisons",
-    },
-    {
-      icon: Hammer,
-      title: "Execution",
-      description: "Track progress and manage your renovation project",
-      details: "Project dashboard, shopping lists, contractor matching",
-    },
-  ];
-
-  const problems = [
-    "Overwhelming complexity for DIY homeowners",
-    "Opaque pricing and hidden costs",
-    "Fragmented vendor landscape",
-    "No professional guidance without high consultant fees",
-  ];
-
-  const solutions = [
-    "Conversational AI simplifies planning",
-    "Transparent cost breakdown upfront",
-    "Unified multi-vendor search platform",
-    "Professional-grade guidance at consumer prices",
-  ];
-
-  const techStack = [
-    {
-      category: "Frontend",
-      technologies: ["React", "TypeScript", "TailwindCSS", "Vite"],
-    },
-    {
-      category: "Backend",
-      technologies: ["Supabase", "PostgreSQL", "Row-Level Security", "Edge Functions"],
-    },
-    {
-      category: "AI Models",
-      technologies: ["Google Gemini 2.5", "OpenAI GPT-5", "Image Generation", "NLP"],
-    },
-    {
-      category: "Integration",
-      technologies: ["Firecrawl", "Multi-Vendor APIs", "Real-time Search"],
-    },
-  ];
-
-  const revenueStreams = [
-    { name: "Vendor Commission", percentage: 40, amount: "3-7% per sale" },
-    { name: "Premium Subscriptions", percentage: 25, amount: "$9.99/month" },
-    { name: "Contractor Referrals", percentage: 20, amount: "15% commission" },
-    { name: "Enterprise Licensing", percentage: 10, amount: "$50K+ annually" },
-    { name: "Data Analytics", percentage: 5, amount: "Market insights" },
-  ];
-
-  const roadmapQ2 = [
-    "Advanced visual design generation",
-    "Enhanced BOM intelligence",
-    "Expanded vendor integrations",
-  ];
-
-  const roadmapQ4 = [
-    "Contractor marketplace launch",
-    "Mobile app (iOS & Android)",
-    "Eastern Europe expansion",
-  ];
-
-  const roadmap2026 = [
-    "Western Europe & US markets",
-    "B2B enterprise solutions",
-    "AR visualization features",
-  ];
-
-  const trends = [
-    {
-      icon: Brain,
-      title: "AI Maturity",
-      stat: "ChatGPT reached 100M users in 2 months",
-      description: "Multimodal AI enables unprecedented automation",
-    },
-    {
-      icon: Hammer,
-      title: "DIY Boom",
-      stat: "70% of homeowners prefer DIY",
-      description: "Post-pandemic surge in home improvement projects",
-    },
-    {
-      icon: DollarSign,
-      title: "Cost Sensitivity",
-      stat: "Inflation drives price comparison",
-      description: "Homeowners seeking maximum value for investments",
-    },
-    {
-      icon: Globe,
-      title: "Digital-First",
-      stat: "E-commerce penetration growing 15% YoY",
-      description: "Online research before every major purchase",
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -192,13 +38,13 @@ const About = () => {
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className={`text-center transition-all duration-1000 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
             <Badge className="mb-4 text-lg px-4 py-2" variant="secondary">
-              About RenovateAI
+              About RenobuildAI
             </Badge>
             <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6">
               Transforming Home Renovation with AI
             </h1>
             <p className="text-xl md:text-2xl text-primary-foreground/90 mb-12 max-w-3xl mx-auto">
-              Empowering every human to create their dream living space through intelligent automation
+              Making professional-grade renovation planning accessible, affordable, and stress-free for every homeowner
             </p>
             
             <div className="grid md:grid-cols-3 gap-8 mt-16">
@@ -210,7 +56,7 @@ const About = () => {
                 prefix="$"
               />
               <StatCard
-                icon={TrendingDown}
+                icon={TrendingUp}
                 value={25}
                 suffix="%"
                 label="Average Cost Savings"
@@ -226,385 +72,297 @@ const About = () => {
         </div>
       </section>
 
-      {/* Problem & Solution */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card className="border-destructive/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-destructive">
-                  <AlertCircle className="h-6 w-6" />
-                  The Problem
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-4">
-                  {problems.map((problem, idx) => (
-                    <li key={idx} className="flex items-start gap-3 animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
-                      <div className="w-2 h-2 rounded-full bg-destructive mt-2 flex-shrink-0" />
-                      <span className="text-muted-foreground">{problem}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card className="gradient-accent border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-primary-foreground">
-                  <CheckCircle className="h-6 w-6" />
-                  Our Solution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-4">
-                  {solutions.map((solution, idx) => (
-                    <li key={idx} className="flex items-start gap-3 animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
-                      <CheckCircle className="w-5 h-5 text-primary-foreground flex-shrink-0 mt-0.5" />
-                      <span className="text-primary-foreground/90">{solution}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
+      {/* Story Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">How It Works</h2>
-            <p className="text-xl text-muted-foreground">Your journey from inspiration to execution</p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-6 relative">
-            {steps.map((step, idx) => {
-              const Icon = step.icon;
-              return (
-                <div key={idx} className="relative">
-                  <Card className="hover-scale transition-smooth hover:shadow-glow cursor-pointer h-full">
-                    <CardHeader>
-                      <div className="w-16 h-16 rounded-full gradient-hero flex items-center justify-center mb-4 shadow-glow">
-                        <Icon className="h-8 w-8 text-primary-foreground" />
-                      </div>
-                      <CardTitle className="text-xl">{step.title}</CardTitle>
-                      <CardDescription>{step.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground">{step.details}</p>
-                    </CardContent>
-                  </Card>
-                  {idx < steps.length - 1 && (
-                    <ArrowRight className="hidden md:block absolute -right-8 top-1/2 -translate-y-1/2 h-6 w-6 text-primary z-10" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Key Features */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Key Features</h2>
-            <p className="text-xl text-muted-foreground">Powerful capabilities built for modern homeowners</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, idx) => (
-              <FeatureCard
-                key={idx}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-                delay={idx * 100}
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
+            <div className="order-2 md:order-1">
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">The Challenge Every Homeowner Faces</h2>
+              <p className="text-lg text-muted-foreground mb-4">
+                Meet Sarah. She dreamed of renovating her kitchen—modern countertops, new cabinets, better lighting. But where to start? She spent weeks browsing Pinterest, visiting hardware stores, and trying to calculate costs on spreadsheets. The quotes from contractors varied wildly, and she couldn't tell if she was getting a fair deal.
+              </p>
+              <p className="text-lg text-muted-foreground mb-4">
+                Like 73% of homeowners, Sarah struggled with material planning and cost estimation. She felt overwhelmed by the complexity, frustrated by hidden costs, and worried about making expensive mistakes. Her dream kitchen project felt more like a nightmare.
+              </p>
+              <p className="text-lg text-muted-foreground">
+                There had to be a better way.
+              </p>
+            </div>
+            <div className="order-1 md:order-2">
+              <img 
+                src={stressedImage} 
+                alt="Homeowner overwhelmed with renovation planning" 
+                className="rounded-2xl shadow-elegant hover-scale transition-smooth"
               />
-            ))}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <img 
+                src={happyImage} 
+                alt="Happy homeowner in renovated space" 
+                className="rounded-2xl shadow-elegant hover-scale transition-smooth"
+              />
+            </div>
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">A New Way Forward</h2>
+              <p className="text-lg text-muted-foreground mb-4">
+                That's why we built RenobuildAI. We believe that transforming your living space shouldn't require a degree in project management or weeks of research. With our AI-powered platform, Sarah simply described her vision in natural conversation—"I want a modern kitchen with marble countertops and plenty of storage."
+              </p>
+              <p className="text-lg text-muted-foreground mb-4">
+                Within minutes, RenobuildAI understood her needs, generated a detailed materials list, and searched dozens of retailers to find the best prices. No spreadsheets, no stress, no guesswork. Sarah saved $3,200 and completed her planning in just three days instead of three months.
+              </p>
+              <p className="text-lg text-primary font-semibold">
+                This is the future of home renovation—and it's available today.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Technology Stack */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Technology Stack</h2>
-            <p className="text-xl text-muted-foreground">Built on enterprise-grade, modern technologies</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {techStack.map((stack, idx) => (
-              <Card key={idx} className="hover-scale transition-smooth">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-primary" />
-                    {stack.category}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {stack.technologies.map((tech, techIdx) => (
-                      <li key={techIdx} className="text-sm text-muted-foreground flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        {tech}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Competitive Advantage */}
+      {/* How It Works - Visual Journey */}
       <section className="py-20 px-4 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Competitive Advantage</h2>
-            <p className="text-xl text-muted-foreground">The only end-to-end AI-powered renovation platform</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">How RenobuildAI Works</h2>
+            <p className="text-xl text-muted-foreground">Your journey from inspiration to execution in four simple steps</p>
           </div>
 
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <Card className="hover-scale transition-smooth hover:shadow-glow">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full gradient-hero flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">1. Share Your Vision</h3>
+                    <p className="text-muted-foreground">
+                      Talk to our AI like you'd chat with a friend. Describe your dream renovation, upload inspiration photos, or simply tell us what you want to achieve. No technical jargon needed.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-scale transition-smooth hover:shadow-glow">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full gradient-hero flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">2. Get Your Plan</h3>
+                    <p className="text-muted-foreground">
+                      Our AI instantly generates a detailed bill of materials with exact quantities, specifications, and cost estimates. Every item you need, calculated automatically based on your space and requirements.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-scale transition-smooth hover:shadow-glow">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full gradient-hero flex items-center justify-center flex-shrink-0">
+                    <ShoppingCart className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">3. Find Best Prices</h3>
+                    <p className="text-muted-foreground">
+                      We search multiple vendors simultaneously—Enmax, MaxBau, and more—to find you the best deals. Real-time pricing, availability checks, and instant comparisons save you 18-25% on average.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="hover-scale transition-smooth hover:shadow-glow">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full gradient-hero flex items-center justify-center flex-shrink-0">
+                    <Hammer className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold mb-2">4. Bring It to Life</h3>
+                    <p className="text-muted-foreground">
+                      Track your project progress, manage your shopping list, and visualize the final result with AI-generated designs. Transform your space with confidence, knowing every detail is covered.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center">
+            <img 
+              src={aiInterfaceImage} 
+              alt="RenobuildAI interface in action" 
+              className="rounded-2xl shadow-elegant max-w-3xl mx-auto hover-scale transition-smooth"
+            />
+            <p className="text-sm text-muted-foreground mt-4">Our intuitive AI chat interface makes renovation planning feel effortless</p>
+          </div>
+        </div>
+      </section>
+
+      {/* What Makes Us Different */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">What Makes Us Different</h2>
+            <p className="text-xl text-muted-foreground">The only complete end-to-end AI renovation platform</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
+            <div className="relative">
+              <div className="absolute -left-4 top-0 bottom-0 w-1 bg-muted rounded-full"></div>
+              <div className="pl-8">
+                <h3 className="text-2xl font-bold mb-4 text-muted-foreground">The Traditional Way</h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-muted-foreground">Weeks of research and price comparison</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-muted-foreground">Manual calculations and spreadsheets</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-muted-foreground">Visiting multiple stores physically</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-muted-foreground">Expensive consultant fees or going solo</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-muted-foreground">→</span>
+                    <span className="text-muted-foreground">Budget overruns of 20-50% on average</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -left-4 top-0 bottom-0 w-1 gradient-hero rounded-full"></div>
+              <div className="pl-8">
+                <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                  The RenobuildAI Way
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </h3>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Planning complete in minutes with AI conversation</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Automatic bill of materials generation</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Instant multi-vendor price comparison</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Professional-grade guidance at consumer prices</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Save 18-25% with transparent pricing</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <img 
+              src={beforeAfterImage} 
+              alt="Before and after renovation transformation" 
+              className="rounded-2xl shadow-elegant hover-scale transition-smooth"
+            />
+            <p className="text-sm text-muted-foreground mt-4 text-center">Real transformations, powered by intelligent planning</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Table */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">How We Stack Up</h2>
+            <p className="text-xl text-muted-foreground">The complete solution vs. partial alternatives</p>
+          </div>
           <ComparisonTable />
         </div>
       </section>
 
-      {/* Business Model */}
+      {/* Technology Behind the Magic */}
       <section className="py-20 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Business Model</h2>
-            <p className="text-xl text-muted-foreground">Diversified revenue streams for sustainable growth</p>
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">The Technology Behind the Magic</h2>
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              RenobuildAI is powered by cutting-edge artificial intelligence and modern web technologies. We combine Google Gemini and OpenAI's latest models with real-time vendor integrations to deliver instant, accurate renovation planning. Our platform is built on enterprise-grade infrastructure ensuring security, speed, and reliability for every user.
+            </p>
           </div>
+        </div>
+      </section>
 
+      {/* Vision for the Future */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              {revenueStreams.map((stream, idx) => (
-                <div key={idx} className="animate-fade-in" style={{ animationDelay: `${idx * 100}ms` }}>
-                  <div className="flex justify-between mb-2">
-                    <span className="font-medium">{stream.name}</span>
-                    <span className="text-muted-foreground">{stream.amount}</span>
-                  </div>
-                  <Progress value={stream.percentage} className="h-3" />
-                </div>
-              ))}
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">Our Vision for the Future</h2>
+              <p className="text-xl text-muted-foreground mb-6">
+                Imagine a world where transforming your living space is as easy as having a conversation. Where augmented reality lets you visualize every change before making it. Where contractors, materials, and designs come together seamlessly through intelligent automation.
+              </p>
+              <p className="text-xl text-muted-foreground mb-6">
+                We're building that future today. From our roots in Eastern Europe, we're expanding across continents, adding new capabilities, and connecting millions of homeowners with the tools they need to create their dream spaces.
+              </p>
+              <p className="text-xl font-semibold text-primary">
+                Every human deserves to create their dream living space—and we're making it possible.
+              </p>
             </div>
-
-            <Card className="gradient-accent shadow-glow">
-              <CardHeader>
-                <CardTitle className="text-2xl text-primary-foreground">Unit Economics</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4 text-primary-foreground/90">
-                <div className="flex justify-between items-center">
-                  <span>Average Project Value</span>
-                  <span className="text-2xl font-bold">$3,500</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Platform Commission</span>
-                  <span className="text-2xl font-bold">$175</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span>Customer Acquisition Cost</span>
-                  <span className="text-2xl font-bold">$45</span>
-                </div>
-                <div className="border-t border-primary-foreground/20 pt-4 mt-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-bold">LTV:CAC Ratio</span>
-                    <span className="text-3xl font-bold text-primary-foreground">3.9:1</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div>
+              <img 
+                src={futureVisionImage} 
+                alt="Future of home renovation with AR and AI" 
+                className="rounded-2xl shadow-elegant hover-scale transition-smooth"
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Traction */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Current Traction</h2>
-            <p className="text-xl text-muted-foreground">Live MVP with core functionality deployed</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-primary" />
-                  Platform Features
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {["AI-powered conversational planning", "Automated BOM generation", "Multi-vendor product search (Enmax, MaxBau)", "Real-time cost estimation", "User authentication & project management", "Bilingual support (EN/RO)"].map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Performance Metrics
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span>Time to First BOM</span>
-                    <Badge variant="secondary">&lt; 5 min</Badge>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span>Average Cost Savings</span>
-                    <Badge variant="secondary">18-25%</Badge>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span>Product Match Rate</span>
-                    <Badge variant="secondary">85%+</Badge>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                    <span>User Satisfaction</span>
-                    <Badge variant="secondary">4.7/5</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Roadmap */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Roadmap</h2>
-            <p className="text-xl text-muted-foreground">Strategic milestones for 2025 and beyond</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <TimelineCard
-              quarter="Q2 2025"
-              title="Platform Enhancement"
-              items={roadmapQ2}
-              status="in-progress"
-            />
-            <TimelineCard
-              quarter="Q4 2025"
-              title="Market Expansion"
-              items={roadmapQ4}
-              status="planned"
-            />
-            <TimelineCard
-              quarter="2026+"
-              title="Global Scale"
-              items={roadmap2026}
-              status="future"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Why Now */}
-      <section className="py-20 px-4 bg-muted/30">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Why Now?</h2>
-            <p className="text-xl text-muted-foreground">The perfect convergence of market forces</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {trends.map((trend, idx) => {
-              const Icon = trend.icon;
-              return (
-                <Card key={idx} className="hover-scale transition-smooth">
-                  <CardHeader>
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <CardTitle className="text-lg">{trend.title}</CardTitle>
-                    <Badge variant="secondary" className="w-fit">{trend.stat}</Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{trend.description}</p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Investment CTA */}
-      <section className="py-20 px-4 gradient-hero">
-        <div className="container mx-auto max-w-4xl text-center">
-          <Badge className="mb-4 text-lg px-4 py-2" variant="secondary">
-            Investment Opportunity
-          </Badge>
+      {/* Join the Movement CTA */}
+      <section className="py-24 px-4 gradient-hero relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-10" />
+        <div className="container mx-auto max-w-4xl text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-primary-foreground mb-6">
-            Join Us in Revolutionizing Home Renovation
+            Join Thousands of Homeowners Transforming Their Spaces
           </h2>
           <p className="text-xl text-primary-foreground/90 mb-8">
-            Seeking $2.5M Seed Round to scale operations and capture market leadership
+            Start planning your dream renovation today with AI-powered intelligence, transparent pricing, and professional-grade guidance at your fingertips.
           </p>
-
-          <div className="grid md:grid-cols-4 gap-6 mb-12">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-3xl font-bold text-primary mb-2">40%</div>
-                <div className="text-sm text-muted-foreground">Engineering & Product</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-3xl font-bold text-primary mb-2">30%</div>
-                <div className="text-sm text-muted-foreground">Marketing & Growth</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-3xl font-bold text-primary mb-2">20%</div>
-                <div className="text-sm text-muted-foreground">Market Expansion</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-3xl font-bold text-primary mb-2">10%</div>
-                <div className="text-sm text-muted-foreground">Operations & Legal</div>
-              </CardContent>
-            </Card>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <Button size="lg" variant="secondary" className="text-lg px-8">
+              Start Your Project <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+            <Button size="lg" variant="outline" className="text-lg px-8 bg-background/10 hover:bg-background/20 border-primary-foreground/20 text-primary-foreground">
+              See How It Works
+            </Button>
           </div>
 
-          <div className="bg-background/10 backdrop-blur-sm rounded-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-primary-foreground mb-6">18-Month Milestones</h3>
-            <div className="grid md:grid-cols-3 gap-6 text-primary-foreground/90">
-              <div>
-                <div className="text-3xl font-bold mb-2">50K+</div>
-                <div className="text-sm">Active Users</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold mb-2">15</div>
-                <div className="text-sm">Countries</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold mb-2">$2.8M</div>
-                <div className="text-sm">ARR Target</div>
-              </div>
-            </div>
-          </div>
-
-          <Button size="xl" variant="secondary" className="shadow-glow">
-            Request Investment Deck <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+          <img 
+            src={communityImage} 
+            alt="Community of happy homeowners" 
+            className="rounded-2xl shadow-elegant max-w-2xl mx-auto"
+          />
         </div>
       </section>
     </div>

@@ -97,7 +97,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Success!",
-          description: "Your account has been created. Welcome to BuildAI!",
+          description: "Your account has been created. Welcome to RenobuildAI!",
         });
       }
     } catch (error: any) {
@@ -159,7 +159,7 @@ const Auth = () => {
             <div className="w-12 h-12 gradient-hero rounded-lg flex items-center justify-center shadow-elegant">
               <Hammer className="w-7 h-7 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold">BuildAI</span>
+            <span className="text-2xl font-bold">RenobuildAI</span>
           </div>
         </div>
 
@@ -296,7 +296,7 @@ const Auth = () => {
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          By continuing, you agree to BuildAI's Terms of Service and Privacy Policy
+          By continuing, you agree to RenobuildAI's Terms of Service and Privacy Policy
         </p>
       </div>
     </div>
