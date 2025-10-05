@@ -144,7 +144,7 @@ const Dashboard = () => {
                   )}
                   
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="capitalize">{project.status.replace("_", " ")}</span>
+                    <span className="capitalize">{project.status?.replace("_", " ") || "planning"}</span>
                     {project.budget && <span>${project.budget.toLocaleString()}</span>}
                   </div>
                   
