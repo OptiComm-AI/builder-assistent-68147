@@ -594,12 +594,18 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
       );
     }
 
-    // Trigger project data extraction asynchronously (don't wait)
+    // Determine generation modes
+    const lastUserMessage = messages[messages.length - 1];
+    const hasRecentImage = messages.slice(-3).some((m: any) => m.image_url);
+    const shouldGenerateText = !hasRecentImage && shouldGenerateFromScratch(lastUserMessage.content, false);
+    const shouldTransform = hasRecentImage && shouldGenerateTransformation(lastUserMessage.content);
+
+    // Handle project extraction and image generation in background
     if (projectId && conversationId) {
-      // Clone the response body so we can both stream it and read it
-      const [stream1, stream2] = response.body!.tee();
+      // Clone the response stream: one for client, one for background processing
+      const [streamClient, streamBackground] = response.body!.tee();
       
-      // Extract project info in the background
+      // 1. Extract project info in background
       extractProjectInfoAsync(
         supabase,
         projectId,
@@ -608,43 +614,104 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
         LOVABLE_API_KEY
       ).catch(err => console.error("Background extraction error:", err));
 
-      return new Response(stream1, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-      });
-    }
-
-    // Check if we should generate an image transformation
-    const lastUserMessage = messages[messages.length - 1];
-    const hasRecentImage = messages.slice(-3).some((m: any) => m.image_url);
-    
-    if (hasRecentImage && lastUserMessage && shouldGenerateTransformation(lastUserMessage.content)) {
-      console.log('Transformation request detected, will generate image after response');
-      
-      // Find the most recent image in the conversation
-      let originalImageUrl: string | null = null;
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].image_url) {
-          originalImageUrl = messages[i].image_url;
-          break;
-        }
-      }
-
-      // Fetch project data for context
-      let projectData = null;
-      if (projectId) {
-        const { data } = await supabase
-          .from("projects")
-          .select("name, budget, style_preferences")
-          .eq("id", projectId)
-          .single();
-        projectData = data;
-      }
-
-      if (originalImageUrl) {
-        // Start image generation in background after streaming completes
+      // 2. Handle TEXT-TO-IMAGE generation (from scratch)
+      if (shouldGenerateText) {
+        console.log('Text-to-image generation request detected');
+        
         (async () => {
           try {
-            console.log('Calling generate-renovation-image function...');
+            // Read the AI response to detect GENERATE_IMAGE marker
+            const reader = streamBackground.getReader();
+            const decoder = new TextDecoder();
+            let fullResponse = '';
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              fullResponse += decoder.decode(value, { stream: true });
+            }
+            
+            // Check if AI confirmed generation with GENERATE_IMAGE marker
+            if (fullResponse.includes('GENERATE_IMAGE:')) {
+              const generationMatch = fullResponse.match(/GENERATE_IMAGE:\s*(.+?)(?=\n\n|$)/s);
+              if (generationMatch) {
+                const generationPrompt = generationMatch[1].trim();
+                console.log('Generating image with prompt:', generationPrompt.substring(0, 100) + '...');
+                
+                // Get project data for context
+                const { data: projectData } = await supabase
+                  .from("projects")
+                  .select("name, budget, style_preferences")
+                  .eq("id", projectId)
+                  .maybeSingle();
+                
+                // Call generate-renovation-image WITHOUT originalImageUrl (text-to-image mode)
+                const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`,
+                  },
+                  body: JSON.stringify({
+                    transformationRequest: generationPrompt,
+                    projectContext: projectData,
+                    // No originalImageUrl = text-to-image mode
+                  }),
+                });
+
+                if (imageGenResponse.ok) {
+                  const { generatedImageUrl } = await imageGenResponse.json();
+                  console.log('Text-to-image generation successful');
+
+                  // Save generated image as new message
+                  await supabase.from('messages').insert({
+                    conversation_id: conversationId,
+                    role: 'assistant',
+                    content: '✨ Here\'s your custom design visualization! This photorealistic rendering brings your vision to life. Would you like me to generate variations with different styles, colors, or layouts?',
+                    image_url: generatedImageUrl
+                  });
+
+                  console.log('Generated image saved to conversation');
+                } else {
+                  const errorText = await imageGenResponse.text();
+                  console.error('Text-to-image generation failed:', imageGenResponse.status, errorText);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error in text-to-image generation:', error);
+          }
+        })().catch(err => console.error('Background text-to-image error:', err));
+      }
+
+      // 3. Handle IMAGE TRANSFORMATION (existing image)
+      if (shouldTransform) {
+        console.log('Transformation request detected, will generate image after response');
+        
+        (async () => {
+          try {
+            // Find the most recent image in the conversation
+            let originalImageUrl: string | null = null;
+            for (let i = messages.length - 1; i >= 0; i--) {
+              if (messages[i].image_url) {
+                originalImageUrl = messages[i].image_url;
+                break;
+              }
+            }
+
+            if (!originalImageUrl) {
+              console.error('No original image found for transformation');
+              return;
+            }
+
+            // Fetch project data for context
+            const { data: projectData } = await supabase
+              .from("projects")
+              .select("name, budget, style_preferences")
+              .eq("id", projectId)
+              .maybeSingle();
+
+            console.log('Calling generate-renovation-image for transformation...');
             
             const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
               method: 'POST',
@@ -663,7 +730,7 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
               const { generatedImageUrl } = await imageGenResponse.json();
               console.log('Image transformation generated successfully');
 
-              // Save a follow-up message with the generated image
+              // Save transformed image as new message
               await supabase.from('messages').insert({
                 conversation_id: conversationId,
                 role: 'assistant',
@@ -674,111 +741,20 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
               console.log('Generated image message saved to database');
             } else {
               const errorText = await imageGenResponse.text();
-              console.error('Image generation failed:', imageGenResponse.status, errorText);
+              console.error('Image transformation failed:', imageGenResponse.status, errorText);
             }
           } catch (error) {
             console.error('Error generating transformation image:', error);
           }
-        })().catch(err => console.error('Background image generation error:', err));
+        })().catch(err => console.error('Background transformation error:', err));
       }
+
+      // Return the client stream immediately
+      return new Response(streamClient, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
     }
 
-    // Check if text-to-image generation should be triggered (TEXT-TO-IMAGE MODE)
-    if (!hasRecentImage && projectId && conversationId) {
-      const lastUserMessage = messages[messages.length - 1];
-      
-      if (shouldGenerateFromScratch(lastUserMessage.content, false)) {
-        console.log('Text-to-image generation request detected');
-        
-        // Get project data for context
-        const { data: projectData } = await supabase
-          .from("projects")
-          .select("name, budget, style_preferences")
-          .eq("id", projectId)
-          .single();
-
-        // Read the AI response stream to check for generation confirmation
-        const reader = response.body!.getReader();
-        const decoder = new TextDecoder();
-        let fullResponse = '';
-        const chunks: Uint8Array[] = [];
-        
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            fullResponse += decoder.decode(value, { stream: true });
-          }
-          
-          // Check if AI confirmed generation with GENERATE_IMAGE marker
-          if (fullResponse.includes('GENERATE_IMAGE:')) {
-            const generationMatch = fullResponse.match(/GENERATE_IMAGE:\s*(.+?)(?:\n|$)/);
-            if (generationMatch) {
-              const generationPrompt = generationMatch[1].trim();
-              console.log('AI confirmed text-to-image generation with prompt:', generationPrompt);
-              
-              // Start text-to-image generation in background
-              (async () => {
-                try {
-                  console.log('Calling generate-renovation-image for text-to-image...');
-                  
-                  const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${supabaseKey}`,
-                    },
-                    body: JSON.stringify({
-                      // No originalImageUrl = text-to-image mode
-                      transformationRequest: generationPrompt,
-                      projectContext: projectData
-                    }),
-                  });
-
-                  if (imageGenResponse.ok) {
-                    const { generatedImageUrl } = await imageGenResponse.json();
-                    console.log('Text-to-image generation successful');
-
-                    // Save the generated image as a new message
-                    await supabase.from('messages').insert({
-                      conversation_id: conversationId,
-                      role: 'assistant',
-                      content: '✨ Here\'s your custom design! This photorealistic rendering shows your vision brought to life. Would you like me to generate variations with different colors, layouts, or styles?',
-                      image_url: generatedImageUrl
-                    });
-
-                    console.log('Generated design message saved to database');
-                  } else {
-                    const errorText = await imageGenResponse.text();
-                    console.error('Text-to-image generation failed:', imageGenResponse.status, errorText);
-                  }
-                } catch (error) {
-                  console.error('Error in text-to-image generation:', error);
-                }
-              })().catch(err => console.error('Background text-to-image error:', err));
-            }
-          }
-          
-          // Reconstruct the response stream from chunks
-          const reconstructedStream = new ReadableStream({
-            start(controller) {
-              for (const chunk of chunks) {
-                controller.enqueue(chunk);
-              }
-              controller.close();
-            }
-          });
-          
-          return new Response(reconstructedStream, {
-            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-          });
-        } catch (error) {
-          console.error('Error processing text-to-image trigger:', error);
-          // Fall through to return original response
-        }
-      }
-    }
 
     return new Response(response.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
