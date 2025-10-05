@@ -243,11 +243,26 @@ const AIChat = ({
         },
         (payload) => {
           const newMessage = payload.new as any;
-          setMessages(prev => [...prev, {
-            role: newMessage.role,
-            content: newMessage.content,
-            image_url: newMessage.image_url || undefined
-          }]);
+          
+          // Prevent duplicate - check if message already exists in state
+          setMessages(prev => {
+            const exists = prev.some(m => 
+              m.role === newMessage.role && 
+              m.content === newMessage.content &&
+              m.image_url === newMessage.image_url
+            );
+            
+            if (exists) {
+              console.log('Ignoring duplicate message from realtime subscription');
+              return prev;
+            }
+            
+            return [...prev, {
+              role: newMessage.role,
+              content: newMessage.content,
+              image_url: newMessage.image_url || undefined
+            }];
+          });
         }
       )
       .subscribe();
