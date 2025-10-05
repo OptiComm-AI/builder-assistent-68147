@@ -134,7 +134,16 @@ const AIChat = ({
     };
 
     loadMessages();
-  }, [conversationId, mode, user, anonymousSessionId]);
+
+    // Generate summary when leaving a conversation
+    return () => {
+      if (conversationId && messages.length > 2) {
+        supabase.functions.invoke('generate-conversation-summary', {
+          body: { conversationId }
+        }).catch(err => console.error('Error generating summary:', err));
+      }
+    };
+  }, [conversationId, mode, user, anonymousSessionId, messages.length]);
 
   // Realtime message updates
   useEffect(() => {

@@ -200,22 +200,25 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
           if (extracted.style_preferences?.length) systemPrompt += `\n- Style Preferences: ${extracted.style_preferences.join(", ")}`;
         }
 
-        // Fetch previous conversations for this project (excluding current one)
+        // Fetch previous conversations with summaries for this project (excluding current one)
         const { data: previousConversations } = await supabase
           .from("conversations")
-          .select("id, title, updated_at")
+          .select("id, title, summary, updated_at")
           .eq("project_id", projectId)
           .neq("id", conversationId || "")
           .order("updated_at", { ascending: false })
-          .limit(5);
+          .limit(3);
 
         if (previousConversations && previousConversations.length > 0) {
           systemPrompt += `\n\nPREVIOUS PROJECT CONVERSATIONS:`;
           for (const conv of previousConversations) {
             const date = new Date(conv.updated_at).toLocaleDateString();
             systemPrompt += `\n- [${date}] ${conv.title || "Untitled conversation"}`;
+            if (conv.summary) {
+              systemPrompt += `\n  Summary: ${conv.summary}`;
+            }
           }
-          systemPrompt += `\n\nNote: These previous conversations contain context about this project. Build upon previous discussions and avoid repeating what's already been covered.`;
+          systemPrompt += `\n\nNote: These conversation summaries provide context about this project. Build upon previous discussions and avoid repeating what's already been covered.`;
         }
 
         systemPrompt += `\n\nProvide guidance specific to this project's phase and context. Reference the project details when relevant.`;
