@@ -6,25 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface VendorConfig {
+interface Vendor {
+  id: string;
   name: string;
-  searchUrl: (query: string) => string;
+  website_url: string;
+  search_url_template: string;
+  is_active: boolean;
+  priority: number;
 }
-
-const VENDORS: Record<string, VendorConfig> = {
-  homedepot: {
-    name: 'Home Depot',
-    searchUrl: (q) => `https://www.homedepot.com/s/${encodeURIComponent(q)}`
-  },
-  lowes: {
-    name: 'Lowes',
-    searchUrl: (q) => `https://www.lowes.com/search?searchTerm=${encodeURIComponent(q)}`
-  },
-  amazon: {
-    name: 'Amazon',
-    searchUrl: (q) => `https://www.amazon.com/s?k=${encodeURIComponent(q)}`
-  }
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -32,7 +21,7 @@ serve(async (req) => {
   }
 
   try {
-    const { bomItemId, searchQuery, vendors = ['homedepot', 'lowes', 'amazon'] } = await req.json();
+    const { bomItemId, searchQuery } = await req.json();
     console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery);
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')!;
@@ -51,13 +40,29 @@ serve(async (req) => {
 
     if (itemError) throw itemError;
 
+    // Fetch active vendors from database
+    const { data: vendors, error: vendorError } = await supabase
+      .from('vendors')
+      .select('*')
+      .eq('is_active', true)
+      .order('priority', { ascending: false });
+
+    if (vendorError) throw vendorError;
+
+    if (!vendors || vendors.length === 0) {
+      console.log('No active vendors configured');
+      return new Response(
+        JSON.stringify({ success: true, matchCount: 0, matches: [], message: 'No active vendors configured' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Found ${vendors.length} active vendors to search`);
+
     const productMatches = [];
 
-    for (const vendorKey of vendors) {
-      if (!VENDORS[vendorKey]) continue;
-
-      const vendor = VENDORS[vendorKey];
-      const searchUrl = vendor.searchUrl(searchQuery);
+    for (const vendor of vendors) {
+      const searchUrl = vendor.search_url_template.replace('{query}', encodeURIComponent(searchQuery));
       
       console.log(`Scraping ${vendor.name}:`, searchUrl);
 
