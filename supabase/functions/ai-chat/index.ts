@@ -90,6 +90,32 @@ function shouldGenerateTransformation(message: string): boolean {
   return transformationKeywords.some(keyword => lowerMessage.includes(keyword));
 }
 
+// Helper function to fetch and convert images to base64
+async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
+  try {
+    console.log('Fetching image for base64 conversion:', imageUrl.substring(0, 100) + '...');
+    const imageResponse = await fetch(imageUrl);
+    
+    if (!imageResponse.ok) {
+      console.error('Failed to fetch image:', imageResponse.status, imageResponse.statusText);
+      return null;
+    }
+
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const base64Image = btoa(
+      new Uint8Array(imageBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+    const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    const base64DataUrl = `data:${mimeType};base64,${base64Image}`;
+    
+    console.log('Image successfully converted to base64, size:', base64Image.length, 'mime:', mimeType);
+    return base64DataUrl;
+  } catch (error) {
+    console.error('Error fetching/converting image to base64:', error);
+    return null;
+  }
+}
+
 // Background function to extract and update project data
 async function extractProjectInfoAsync(
   supabase: any,
@@ -407,8 +433,8 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
       }
     }
 
-    // Format messages for multimodal (text + images)
-    const formattedMessages = messages.map((msg: any) => {
+    // Format messages for multimodal (text + images) - with base64 conversion
+    const formattedMessages = await Promise.all(messages.map(async (msg: any) => {
       if (msg.image_url) {
         console.log('Processing image message:', {
           hasImageUrl: !!msg.image_url,
@@ -416,6 +442,17 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
           contentLength: msg.content?.length,
           isSignedUrl: msg.image_url?.includes('token=')
         });
+        
+        // Fetch and convert image to base64 for reliable AI processing
+        const base64Image = await fetchImageAsBase64(msg.image_url);
+        
+        if (!base64Image) {
+          console.error('Failed to convert image to base64, sending text-only message');
+          // Return text-only message if image conversion fails
+          return { role: msg.role, content: msg.content };
+        }
+        
+        console.log('Using base64 image data for AI processing');
         return {
           role: msg.role,
           content: [
@@ -423,7 +460,7 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
             { 
               type: "image_url", 
               image_url: { 
-                url: msg.image_url,
+                url: base64Image, // Use base64 data URL instead of signed URL
                 detail: 'high' // Request high detail for better analysis
               } 
             }
@@ -431,7 +468,7 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
         };
       }
       return msg;
-    });
+    }));
 
     // Use gemini-2.5-pro for vision, flash for text-only
     const model = hasImages ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash";
