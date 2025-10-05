@@ -275,22 +275,37 @@ const AIChat = ({
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Uploading image:', fileName);
+
+      const { data, error: uploadError } = await supabase.storage
         .from('chat-images')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError || !data) {
+        console.error('Error uploading image:', uploadError);
+        throw new Error(`Failed to upload: ${uploadError?.message || 'Unknown error'}`);
+      }
 
-      const { data: { publicUrl } } = supabase.storage
+      // Generate a signed URL that's valid for 1 hour (bucket is private)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('chat-images')
-        .getPublicUrl(fileName);
+        .createSignedUrl(data.path, 3600);
 
-      return publicUrl;
+      if (signedUrlError || !signedUrlData) {
+        console.error('Error generating signed URL:', signedUrlError);
+        throw new Error(`Failed to generate URL: ${signedUrlError?.message || 'Unknown error'}`);
+      }
+
+      console.log('Image uploaded successfully, signed URL generated');
+      return signedUrlData.signedUrl;
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error('Image upload failed:', error);
       toast({
         title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to upload image. Please try again.",
         variant: "destructive",
       });
       return null;
@@ -374,6 +389,15 @@ const AIChat = ({
           toast({
             title: "Payment Required",
             description: "Please add credits to your workspace.",
+            variant: "destructive",
+          });
+          return;
+        }
+        if (response.status === 400) {
+          const errorData = await response.json().catch(() => ({}));
+          toast({
+            title: "Image Processing Failed",
+            description: errorData.error || "Failed to process image. Please try a different image format.",
             variant: "destructive",
           });
           return;
@@ -558,8 +582,40 @@ const AIChat = ({
           }),
         });
 
-        if (!response.ok || !response.body) {
+        if (!response.ok) {
+          if (response.status === 429) {
+            toast({
+              title: "Rate Limit Exceeded",
+              description: "Please wait a moment before sending another message.",
+              variant: "destructive",
+            });
+            setMessages(prev => prev.slice(0, -1));
+            return;
+          }
+          if (response.status === 402) {
+            toast({
+              title: "Payment Required",
+              description: "Please add credits to your workspace.",
+              variant: "destructive",
+            });
+            setMessages(prev => prev.slice(0, -1));
+            return;
+          }
+          if (response.status === 400) {
+            const errorData = await response.json().catch(() => ({}));
+            toast({
+              title: "Image Processing Failed",
+              description: errorData.error || "Failed to process image. Please try a different image format.",
+              variant: "destructive",
+            });
+            setMessages(prev => prev.slice(0, -1));
+            return;
+          }
           throw new Error("Failed to connect to AI");
+        }
+
+        if (!response.body) {
+          throw new Error("No response body");
         }
 
         const reader = response.body.getReader();

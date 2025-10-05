@@ -399,11 +399,23 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
     // Format messages for multimodal (text + images)
     const formattedMessages = messages.map((msg: any) => {
       if (msg.image_url) {
+        console.log('Processing image message:', {
+          hasImageUrl: !!msg.image_url,
+          imageUrlPrefix: msg.image_url?.substring(0, 100),
+          contentLength: msg.content?.length,
+          isSignedUrl: msg.image_url?.includes('token=')
+        });
         return {
           role: msg.role,
           content: [
             { type: "text", text: msg.content },
-            { type: "image_url", image_url: { url: msg.image_url } }
+            { 
+              type: "image_url", 
+              image_url: { 
+                url: msg.image_url,
+                detail: 'high' // Request high detail for better analysis
+              } 
+            }
           ]
         };
       }
@@ -432,6 +444,14 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`AI gateway error: ${response.status}`, {
+        status: response.status,
+        error: errorText,
+        hasImage: hasImages,
+        model: model
+      });
+      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
@@ -441,6 +461,7 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
           }
         );
       }
+      
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ 
@@ -452,10 +473,27 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
           }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      
+      // Specific error for image extraction failures
+      if (response.status === 400 && errorText.includes('Failed to extract')) {
+        console.error('Image extraction failed - possible issues: URL not accessible, invalid format, or corrupted image');
+        return new Response(
+          JSON.stringify({ 
+            error: "Failed to process image. Please ensure the image is accessible and try uploading a JPG or PNG format.",
+            details: "Image URL may not be accessible to the AI service"
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
+        JSON.stringify({ 
+          error: "AI gateway error",
+          details: errorText 
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
