@@ -5,7 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Plus, FolderKanban, Clock, CheckCircle2, MessageSquare } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -122,10 +124,51 @@ const Dashboard = () => {
                   <CardDescription>{project.description || "No description"}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between text-sm">
+                  {/* AI Insights Section */}
+                  {project.key_features && project.key_features.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-1">Key Features:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {project.key_features.slice(0, 3).map((feature, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-xs">
+                            {feature}
+                          </Badge>
+                        ))}
+                        {project.key_features.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{project.key_features.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between text-sm mb-2">
                     <span className="capitalize">{project.status.replace("_", " ")}</span>
                     {project.budget && <span>${project.budget.toLocaleString()}</span>}
                   </div>
+                  
+                  {/* Budget estimate from AI */}
+                  {project.budget_estimate && !project.budget && (
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Est. Budget: ${project.budget_estimate.toLocaleString()}
+                    </div>
+                  )}
+                  
+                  {/* Timeline estimate */}
+                  {project.timeline_weeks && (
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Est. Timeline: {project.timeline_weeks} weeks
+                    </div>
+                  )}
+                  
+                  {/* Last chat indicator */}
+                  {project.last_chat_update && (
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3" />
+                      Last discussed {formatDistanceToNow(new Date(project.last_chat_update), { addSuffix: true })}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))}

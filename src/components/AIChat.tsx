@@ -13,13 +13,31 @@ interface Message {
   image_url?: string;
 }
 
+interface ProjectData {
+  name?: string;
+  description?: string;
+  budget_estimate?: number;
+  timeline_weeks?: number;
+  key_features?: string[];
+  materials_mentioned?: string[];
+  style_preferences?: string[];
+}
+
 interface AIChatProps {
   conversationId?: string;
   projectId?: string;
   onConversationCreated?: (conversationId: string) => void;
+  mode?: 'homepage' | 'dedicated';
+  onProjectDataExtracted?: (data: ProjectData) => void;
 }
 
-const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProps) => {
+const AIChat = ({ 
+  conversationId, 
+  projectId, 
+  onConversationCreated,
+  mode = 'dedicated',
+  onProjectDataExtracted
+}: AIChatProps) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -27,9 +45,13 @@ const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProp
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | undefined>(conversationId);
+  const [currentProjectId, setCurrentProjectId] = useState<string | undefined>(projectId);
+  const [messageCount, setMessageCount] = useState(0);
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [anonymousSessionId] = useState(() => `anon-${Date.now()}`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,12 +61,28 @@ const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProp
     scrollToBottom();
   }, [messages]);
 
-  // Load conversation messages
+  // Load conversation messages or localStorage for anonymous users
   useEffect(() => {
     if (!conversationId) {
+      // Check for anonymous chat history in localStorage
+      if (mode === 'homepage' && !user) {
+        const stored = localStorage.getItem(`anonymous-chat-${anonymousSessionId}`);
+        if (stored) {
+          try {
+            const storedMessages = JSON.parse(stored);
+            setMessages(storedMessages);
+            return;
+          } catch (e) {
+            console.error("Failed to parse stored messages:", e);
+          }
+        }
+      }
+      
       setMessages([{
         role: "assistant",
-        content: "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
+        content: mode === 'homepage' && !user
+          ? "Hi! I'm your AI Project Assistant. Tell me about your renovation or design project, and I'll help you plan it. What are you working on?"
+          : "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
       }]);
       setCurrentConversationId(undefined);
       return;
@@ -78,7 +116,7 @@ const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProp
     };
 
     loadMessages();
-  }, [conversationId]);
+  }, [conversationId, mode, user, anonymousSessionId]);
 
   // Realtime message updates
   useEffect(() => {
@@ -356,8 +394,81 @@ const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProp
     }
   };
 
+  const extractProjectInfo = async (messagesToExtract: Message[]) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-project-info', {
+        body: { messages: messagesToExtract }
+      });
+
+      if (error) throw error;
+      
+      const projectData = data?.projectData as ProjectData;
+      if (projectData && Object.keys(projectData).length > 0) {
+        console.log("Extracted project data:", projectData);
+        onProjectDataExtracted?.(projectData);
+        
+        // Update project if we have one
+        if (currentProjectId && currentProjectId !== 'new') {
+          await supabase
+            .from("projects")
+            .update({
+              ...(projectData.key_features && { key_features: projectData.key_features }),
+              ...(projectData.materials_mentioned && { materials_mentioned: projectData.materials_mentioned }),
+              ...(projectData.style_preferences && { style_preferences: projectData.style_preferences }),
+              ...(projectData.budget_estimate && { budget_estimate: projectData.budget_estimate }),
+              ...(projectData.timeline_weeks && { timeline_weeks: projectData.timeline_weeks }),
+              last_chat_update: new Date().toISOString()
+            })
+            .eq("id", currentProjectId);
+        }
+      }
+    } catch (error) {
+      console.error("Error extracting project info:", error);
+    }
+  };
+
   const handleSend = async () => {
-    if ((!input.trim() && !selectedImage) || isLoading || !user) return;
+    if ((!input.trim() && !selectedImage) || isLoading) return;
+    
+    // For anonymous users in homepage mode
+    if (mode === 'homepage' && !user) {
+      const userMessage: Message = {
+        role: "user",
+        content: input.trim() || "Please analyze this image",
+        ...(imagePreview && { image_url: imagePreview })
+      };
+      
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      setInput("");
+      clearImage();
+      
+      // Save to localStorage
+      localStorage.setItem(`anonymous-chat-${anonymousSessionId}`, JSON.stringify(updatedMessages));
+      
+      setMessageCount(prev => prev + 1);
+      
+      // Show signup prompt after 3-5 messages
+      if (messageCount >= 3 && !showSignupPrompt) {
+        setShowSignupPrompt(true);
+      }
+      
+      // Simple mock response for anonymous users
+      setTimeout(() => {
+        const assistantMessage: Message = {
+          role: "assistant",
+          content: "That sounds like an exciting project! To save our conversation and get personalized project management features, I recommend creating a free account. Would you like to sign up?"
+        };
+        const withAssistant = [...updatedMessages, assistantMessage];
+        setMessages(withAssistant);
+        localStorage.setItem(`anonymous-chat-${anonymousSessionId}`, JSON.stringify(withAssistant));
+      }, 1000);
+      
+      return;
+    }
+    
+    // For authenticated users
+    if (!user) return;
     
     let imageUrl: string | null = null;
 
@@ -396,11 +507,33 @@ const AIChat = ({ conversationId, projectId, onConversationCreated }: AIChatProp
     setInput("");
     clearImage();
     
+    setMessageCount(prev => prev + 1);
+    
+    // Extract project info every 5 messages for logged-in users
+    if (messageCount > 0 && messageCount % 5 === 0) {
+      extractProjectInfo(updatedMessages);
+    }
+    
     streamChat(updatedMessages, convId);
   };
 
   return (
     <div className="h-full flex flex-col">
+      {showSignupPrompt && mode === 'homepage' && !user && (
+        <div className="bg-primary/10 border-b border-primary/20 p-4">
+          <div className="container mx-auto max-w-4xl flex items-center justify-between">
+            <p className="text-sm">
+              💡 <strong>Create a free account</strong> to save this conversation and track your project progress!
+            </p>
+            <Button 
+              size="sm"
+              onClick={() => window.location.href = '/auth'}
+            >
+              Sign Up Free
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-4xl h-full flex flex-col">
           <div className="bg-card border border-border/50 rounded-2xl shadow-elegant overflow-hidden flex flex-col h-full">

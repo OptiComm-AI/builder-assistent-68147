@@ -158,41 +158,62 @@ export type Database = {
       }
       projects: {
         Row: {
+          ai_extracted_data: Json | null
           budget: number | null
+          budget_estimate: number | null
           created_at: string
           description: string | null
           end_date: string | null
           id: string
+          key_features: string[] | null
+          last_chat_update: string | null
+          materials_mentioned: string[] | null
           name: string
           phase: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["project_status"]
+          style_preferences: string[] | null
+          timeline_weeks: number | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_extracted_data?: Json | null
           budget?: number | null
+          budget_estimate?: number | null
           created_at?: string
           description?: string | null
           end_date?: string | null
           id?: string
+          key_features?: string[] | null
+          last_chat_update?: string | null
+          materials_mentioned?: string[] | null
           name: string
           phase?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          style_preferences?: string[] | null
+          timeline_weeks?: number | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_extracted_data?: Json | null
           budget?: number | null
+          budget_estimate?: number | null
           created_at?: string
           description?: string | null
           end_date?: string | null
           id?: string
+          key_features?: string[] | null
+          last_chat_update?: string | null
+          materials_mentioned?: string[] | null
           name?: string
           phase?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["project_status"]
+          style_preferences?: string[] | null
+          timeline_weeks?: number | null
           updated_at?: string
           user_id?: string
         }

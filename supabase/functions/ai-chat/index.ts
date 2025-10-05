@@ -14,6 +14,8 @@ serve(async (req) => {
 
   try {
     const { messages, projectId, conversationId } = await req.json();
+    const authHeader = req.headers.get("authorization");
+    const isAuthenticated = authHeader && authHeader.startsWith("Bearer ");
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -28,8 +30,9 @@ serve(async (req) => {
     // Check if any message contains an image
     const hasImages = messages.some((msg: any) => msg.image_url);
 
-    // Build system prompt with vision capabilities
-    let systemPrompt = `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
+    // Build system prompt based on authentication status
+    let systemPrompt = isAuthenticated
+      ? `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
 
 Your capabilities:
 ${hasImages ? `
@@ -49,7 +52,14 @@ ${hasImages ? `
 - Identify potential issues and suggest solutions
 - Answer questions about design, construction, and project management
 
-Always be helpful, practical, and proactive in your suggestions.`;
+Always be helpful, practical, and proactive in your suggestions.`
+      : `You are a friendly AI assistant helping users plan their renovation or design project.
+
+After discussing their ideas for 3-5 messages, GENTLY suggest they create an account to save their progress and get personalized project management features. Be encouraging but not pushy.
+
+Say something like: "I'm getting a great sense of your project! Would you like to create a free account so we can save this conversation and help you track everything?"
+
+Be helpful first, focus on their project, and naturally suggest signup when appropriate.`;
 
     if (projectId) {
       const { data: project } = await supabase
