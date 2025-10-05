@@ -1,12 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, User, Bot, Image as ImageIcon, X, Loader2 } from "lucide-react";
+import { Send, Sparkles, User, Bot, Image as ImageIcon, X, Loader2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import aiIcon from "@/assets/ai-icon.png";
 import ProjectSelector from "@/components/ProjectSelector";
+import { BOMReview } from "@/components/BOMReview";
+import { ProductSearch } from "@/components/ProductSearch";
+import { ShoppingList } from "@/components/ShoppingList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Temporary untyped alias until types regenerate
 const sb = supabase as unknown as any;
@@ -62,6 +66,11 @@ const AIChat = ({
   const { toast } = useToast();
   const [anonymousSessionId] = useState(() => `anon-${Date.now()}`);
   const [generationMode, setGenerationMode] = useState<'chat' | 'transformation' | 'text-generation'>('chat');
+  
+  // BOM-related state
+  const [currentBomId, setCurrentBomId] = useState<string | null>(null);
+  const [bomGenerating, setBomGenerating] = useState(false);
+  const [selectedBomItemId, setSelectedBomItemId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.generate-bom]
+verify_jwt = false
+
+[functions.search-products]
+verify_jwt = false
