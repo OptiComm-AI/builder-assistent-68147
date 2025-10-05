@@ -61,6 +61,7 @@ const AIChat = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [anonymousSessionId] = useState(() => `anon-${Date.now()}`);
+  const [generationMode, setGenerationMode] = useState<'chat' | 'transformation' | 'text-generation'>('chat');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,6 +69,20 @@ const AIChat = ({
 
   useEffect(() => {
     scrollToBottom();
+  }, [messages]);
+
+  // Detect generation mode based on conversation state
+  useEffect(() => {
+    const hasUserImages = messages.some(m => m.image_url && m.role === 'user');
+    const lastUserMsg = messages.filter(m => m.role === 'user').pop();
+    
+    if (hasUserImages) {
+      setGenerationMode('transformation');
+    } else if (lastUserMsg?.content.toLowerCase().match(/generate|create|design|show me|make me/)) {
+      setGenerationMode('text-generation');
+    } else {
+      setGenerationMode('chat');
+    }
   }, [messages]);
 
   // Sync conversationId prop to state
@@ -780,6 +795,18 @@ const AIChat = ({
                   <div className="flex items-center gap-2 text-sm text-primary-foreground/80">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                     Online & Ready
+                    {generationMode === 'transformation' && (
+                      <span className="ml-2 px-2 py-0.5 bg-white/20 backdrop-blur border border-white/30 rounded-full text-xs flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Transformation Mode
+                      </span>
+                    )}
+                    {generationMode === 'text-generation' && (
+                      <span className="ml-2 px-2 py-0.5 bg-white/20 backdrop-blur border border-white/30 rounded-full text-xs flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        Generation Mode
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -848,11 +875,12 @@ const AIChat = ({
                     </div>
                   )}
                   
-                <div className={`max-w-[85%] px-4 py-3 rounded-2xl break-words overflow-hidden ${
-                  message.role === "user" 
-                    ? "bg-primary text-primary-foreground ml-auto" 
-                    : "bg-card border border-border/50"
-                }`} style={{ overflowWrap: 'break-word' }}>
+                <div className="flex flex-col gap-2 max-w-[85%]">
+                  <div className={`px-4 py-3 rounded-2xl break-words overflow-hidden ${
+                    message.role === "user" 
+                      ? "bg-primary text-primary-foreground ml-auto" 
+                      : "bg-card border border-border/50"
+                  }`} style={{ overflowWrap: 'break-word' }}>
                     {message.image_url && (
                       <div className="relative">
                         <img
@@ -871,6 +899,40 @@ const AIChat = ({
                     )}
                     <MessageContent content={message.content} />
                   </div>
+                  
+                  {/* Quick action buttons for generated images */}
+                  {message.image_url && message.role === 'assistant' && user && (
+                    <div className="flex gap-2 ml-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setInput(generationMode === 'transformation' 
+                            ? "Try a different style" 
+                            : "Generate another variation with different colors");
+                        }}
+                        className="text-xs"
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        {generationMode === 'transformation' ? 'Different Style' : 'New Variation'}
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = message.image_url!;
+                          link.download = `design-${Date.now()}.png`;
+                          link.click();
+                        }}
+                        className="text-xs"
+                      >
+                        Download
+                      </Button>
+                    </div>
+                  )}
+                </div>
                   
                   {message.role === "user" && (
                     <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">

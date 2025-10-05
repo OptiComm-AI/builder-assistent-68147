@@ -13,17 +13,19 @@ serve(async (req) => {
   }
 
   try {
-    const { originalImageUrl, transformationRequest, projectContext } = await req.json();
+    const { originalImageUrl, transformationRequest, projectContext, styleDetails } = await req.json();
 
     console.log('Generate renovation image request:', {
       hasImage: !!originalImageUrl,
+      mode: originalImageUrl ? 'transformation' : 'text-to-image',
       requestLength: transformationRequest?.length,
-      hasContext: !!projectContext
+      hasContext: !!projectContext,
+      hasStyleDetails: !!styleDetails
     });
 
-    if (!originalImageUrl || !transformationRequest) {
+    if (!transformationRequest) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ error: 'Missing transformation request' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -37,7 +39,53 @@ serve(async (req) => {
       );
     }
 
-    // Fetch the original image and convert to base64
+    let aiPayload: any;
+    let prompt: string;
+
+    // TEXT-TO-IMAGE MODE: Generate from description only (no input image)
+    if (!originalImageUrl) {
+      console.log('TEXT-TO-IMAGE MODE: Generating from description');
+      
+      // Build detailed prompt for text-to-image generation
+      const contextInfo = projectContext 
+        ? `Project: ${projectContext.name}. Budget: $${projectContext.budget || 'flexible'}. Style: ${projectContext.style_preferences?.join(', ') || 'modern'}.`
+        : '';
+      
+      const styleInfo = styleDetails 
+        ? `Space Type: ${styleDetails.spaceType || 'interior'}. Style: ${styleDetails.style || 'modern'}. Colors: ${styleDetails.colors?.join(', ') || 'neutral'}. Features: ${styleDetails.features?.join(', ') || 'functional'}.`
+        : '';
+      
+      prompt = `Create a highly realistic, professional interior design rendering.
+
+${transformationRequest}
+
+${contextInfo}
+${styleInfo}
+
+Requirements:
+- Photorealistic quality with accurate lighting and shadows
+- High attention to materials, textures, and finishes  
+- Practical and achievable design (not fantasy)
+- Professional architectural visualization style
+- Show realistic furniture placement and decor
+- Include ambient and task lighting
+- Modern, clean aesthetic
+- Natural color palette that's inviting and livable
+
+The image should look like it was photographed by a professional interior photographer in a completed, staged space.`;
+
+      aiPayload = {
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [{ role: 'user', content: prompt }],
+        modalities: ['image', 'text']
+      };
+
+      console.log('Text-to-image prompt prepared');
+    } else {
+      // IMAGE-TO-IMAGE MODE: Transform existing image
+      console.log('IMAGE-TO-IMAGE MODE: Transforming uploaded image');
+      
+      // Fetch the original image and convert to base64
     console.log('Fetching original image from:', originalImageUrl.substring(0, 100));
     const imageResponse = await fetch(originalImageUrl);
     if (!imageResponse.ok) {
@@ -55,14 +103,14 @@ serve(async (req) => {
     const mimeType = imageResponse.headers.get('content-type') || 'image/jpeg';
     const base64DataUrl = `data:${mimeType};base64,${base64Image}`;
 
-    console.log('Image converted to base64, size:', base64Image.length);
+      console.log('Image converted to base64, size:', base64Image.length);
 
-    // Build transformation prompt with context
-    const contextInfo = projectContext 
-      ? `Project: ${projectContext.name}. Budget: $${projectContext.budget || 'flexible'}. Style: ${projectContext.style_preferences?.join(', ') || 'modern'}.`
-      : '';
-    
-    const prompt = `${transformationRequest}
+      // Build transformation prompt with context
+      const contextInfo = projectContext 
+        ? `Project: ${projectContext.name}. Budget: $${projectContext.budget || 'flexible'}. Style: ${projectContext.style_preferences?.join(', ') || 'modern'}.`
+        : '';
+      
+      prompt = `${transformationRequest}
 
 ${contextInfo}
 
@@ -75,16 +123,7 @@ Create a realistic renovation transformation that shows:
 
 Maintain the room layout and architectural features while transforming the style, materials, and finishes.`;
 
-    console.log('Calling Lovable AI Gateway for image generation...');
-
-    // Call Lovable AI Gateway with Nano Banana model
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      aiPayload = {
         model: 'google/gemini-2.5-flash-image-preview',
         messages: [
           {
@@ -96,7 +135,19 @@ Maintain the room layout and architectural features while transforming the style
           }
         ],
         modalities: ['image', 'text']
-      }),
+      };
+    }
+
+    console.log('Calling Lovable AI Gateway for image generation...');
+
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(aiPayload),
     });
 
     if (!aiResponse.ok) {

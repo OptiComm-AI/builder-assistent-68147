@@ -90,6 +90,30 @@ function shouldGenerateTransformation(message: string): boolean {
   return transformationKeywords.some(keyword => lowerMessage.includes(keyword));
 }
 
+// Helper function to detect text-to-image generation requests
+function shouldGenerateFromScratch(message: string, hasImages: boolean): boolean {
+  // Only trigger if NO images in conversation (text-to-image mode)
+  if (hasImages) return false;
+  
+  const generationKeywords = [
+    'generate', 'create', 'design', 'show me', 'make me',
+    'build', 'imagine', 'visualize', 'example of', 'what would',
+    'can you create', 'can you design', 'can you show', 'can you generate'
+  ];
+  
+  const spaceKeywords = [
+    'kitchen', 'bedroom', 'bathroom', 'living room', 'office',
+    'dining room', 'basement', 'garage', 'patio', 'space',
+    'room', 'area', 'interior', 'home'
+  ];
+  
+  const lowerMessage = message.toLowerCase();
+  const hasGenerationIntent = generationKeywords.some(k => lowerMessage.includes(k));
+  const hasSpaceContext = spaceKeywords.some(k => lowerMessage.includes(k));
+  
+  return hasGenerationIntent && hasSpaceContext;
+}
+
 // Helper function to fetch and convert images to base64
 async function fetchImageAsBase64(imageUrl: string): Promise<string | null> {
   try {
@@ -352,7 +376,25 @@ Be conversational, warm, and proactive in your guidance.`;
     } else if (isAuthenticated) {
       systemPrompt += `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
 
-Your capabilities:
+WHEN USERS WANT TO GENERATE DESIGNS FROM SCRATCH (no image uploaded):
+
+1. **Ask clarifying questions conversationally** (one at a time, not all at once):
+   - "What type of space are you designing?" (kitchen, bedroom, living room, etc.)
+   - "What style resonates with you?" (modern, traditional, industrial, Scandinavian, minimalist, etc.)
+   - "What's your preferred color palette?" (neutral, bold, earth tones, monochromatic)
+   - "Any must-have features?" (island, fireplace, built-ins, open shelving)
+   - "What's your approximate budget for this project?"
+
+2. **After gathering 3-4 key details**, offer to generate:
+   "Perfect! Based on your preferences for a [style] [space type] with [features], I can create a realistic visualization for you. Would you like me to generate that now?"
+
+3. **When user confirms**, respond with:
+   "Great! I'm generating a photorealistic design based on our conversation. This will take about 20-30 seconds... ✨"
+   
+   Then include the phrase "GENERATE_IMAGE:" followed by a detailed description for generation.
+   Example: "GENERATE_IMAGE: A modern Scandinavian kitchen with white shaker cabinets, light wood floors, subway tile backsplash, black hardware, and a large center island with pendant lighting."
+
+WHEN USERS UPLOAD IMAGES:
 ${hasImages ? `
 **Visual Analysis** - When analyzing images:
 - Describe room layouts, dimensions, and spatial relationships
@@ -363,14 +405,17 @@ ${hasImages ? `
 - Suggest specific improvements based on what you see
 - Recommend materials, colors, and finishes that complement the space
 - Provide actionable renovation/design suggestions
+- Transformation images will be automatically generated when they request changes
 ` : ''}
+
+GENERAL CAPABILITIES:
 - Provide budget advice and timeline suggestions
 - Recommend materials, styles, and layouts
 - Help track project progress and milestones
 - Identify potential issues and suggest solutions
 - Answer questions about design, construction, and project management
 
-Always be helpful, practical, and proactive in your suggestions.`;
+Always be helpful, practical, conversational, and proactive in your suggestions.`;
     } else {
       systemPrompt += `You are a friendly AI assistant helping users plan their renovation or design project.
 
@@ -635,6 +680,103 @@ Be helpful first, focus on their project, and naturally suggest signup when appr
             console.error('Error generating transformation image:', error);
           }
         })().catch(err => console.error('Background image generation error:', err));
+      }
+    }
+
+    // Check if text-to-image generation should be triggered (TEXT-TO-IMAGE MODE)
+    if (!hasRecentImage && projectId && conversationId) {
+      const lastUserMessage = messages[messages.length - 1];
+      
+      if (shouldGenerateFromScratch(lastUserMessage.content, false)) {
+        console.log('Text-to-image generation request detected');
+        
+        // Get project data for context
+        const { data: projectData } = await supabase
+          .from("projects")
+          .select("name, budget, style_preferences")
+          .eq("id", projectId)
+          .single();
+
+        // Read the AI response stream to check for generation confirmation
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let fullResponse = '';
+        const chunks: Uint8Array[] = [];
+        
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            fullResponse += decoder.decode(value, { stream: true });
+          }
+          
+          // Check if AI confirmed generation with GENERATE_IMAGE marker
+          if (fullResponse.includes('GENERATE_IMAGE:')) {
+            const generationMatch = fullResponse.match(/GENERATE_IMAGE:\s*(.+?)(?:\n|$)/);
+            if (generationMatch) {
+              const generationPrompt = generationMatch[1].trim();
+              console.log('AI confirmed text-to-image generation with prompt:', generationPrompt);
+              
+              // Start text-to-image generation in background
+              (async () => {
+                try {
+                  console.log('Calling generate-renovation-image for text-to-image...');
+                  
+                  const imageGenResponse = await fetch(`${supabaseUrl}/functions/v1/generate-renovation-image`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${supabaseKey}`,
+                    },
+                    body: JSON.stringify({
+                      // No originalImageUrl = text-to-image mode
+                      transformationRequest: generationPrompt,
+                      projectContext: projectData
+                    }),
+                  });
+
+                  if (imageGenResponse.ok) {
+                    const { generatedImageUrl } = await imageGenResponse.json();
+                    console.log('Text-to-image generation successful');
+
+                    // Save the generated image as a new message
+                    await supabase.from('messages').insert({
+                      conversation_id: conversationId,
+                      role: 'assistant',
+                      content: '✨ Here\'s your custom design! This photorealistic rendering shows your vision brought to life. Would you like me to generate variations with different colors, layouts, or styles?',
+                      image_url: generatedImageUrl
+                    });
+
+                    console.log('Generated design message saved to database');
+                  } else {
+                    const errorText = await imageGenResponse.text();
+                    console.error('Text-to-image generation failed:', imageGenResponse.status, errorText);
+                  }
+                } catch (error) {
+                  console.error('Error in text-to-image generation:', error);
+                }
+              })().catch(err => console.error('Background text-to-image error:', err));
+            }
+          }
+          
+          // Reconstruct the response stream from chunks
+          const reconstructedStream = new ReadableStream({
+            start(controller) {
+              for (const chunk of chunks) {
+                controller.enqueue(chunk);
+              }
+              controller.close();
+            }
+          });
+          
+          return new Response(reconstructedStream, {
+            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+          });
+        } catch (error) {
+          console.error('Error processing text-to-image trigger:', error);
+          // Fall through to return original response
+        }
       }
     }
 
