@@ -14,6 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
+      bills_of_material: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          generated_at: string
+          id: string
+          project_id: string
+          status: string
+          total_estimated_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          generated_at?: string
+          id?: string
+          project_id: string
+          status?: string
+          total_estimated_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          generated_at?: string
+          id?: string
+          project_id?: string
+          status?: string
+          total_estimated_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bills_of_material_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bills_of_material_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_items: {
+        Row: {
+          bom_id: string
+          category: string
+          created_at: string
+          description: string | null
+          estimated_total_price: number | null
+          estimated_unit_price: number | null
+          id: string
+          item_name: string
+          notes: string | null
+          priority: string | null
+          quantity: number
+          unit: string | null
+        }
+        Insert: {
+          bom_id: string
+          category: string
+          created_at?: string
+          description?: string | null
+          estimated_total_price?: number | null
+          estimated_unit_price?: number | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          priority?: string | null
+          quantity: number
+          unit?: string | null
+        }
+        Update: {
+          bom_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          estimated_total_price?: number | null
+          estimated_unit_price?: number | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          priority?: string | null
+          quantity?: number
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_items_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "bills_of_material"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           created_at: string
@@ -83,6 +184,56 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_matches: {
+        Row: {
+          bom_item_id: string
+          id: string
+          in_stock: boolean | null
+          is_selected: boolean | null
+          match_score: number | null
+          price: number | null
+          product_details: Json | null
+          product_name: string
+          product_url: string
+          scraped_at: string
+          vendor: string
+        }
+        Insert: {
+          bom_item_id: string
+          id?: string
+          in_stock?: boolean | null
+          is_selected?: boolean | null
+          match_score?: number | null
+          price?: number | null
+          product_details?: Json | null
+          product_name: string
+          product_url: string
+          scraped_at?: string
+          vendor: string
+        }
+        Update: {
+          bom_item_id?: string
+          id?: string
+          in_stock?: boolean | null
+          is_selected?: boolean | null
+          match_score?: number | null
+          price?: number | null
+          product_details?: Json | null
+          product_name?: string
+          product_url?: string
+          scraped_at?: string
+          vendor?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_matches_bom_item_id_fkey"
+            columns: ["bom_item_id"]
+            isOneToOne: false
+            referencedRelation: "bom_items"
             referencedColumns: ["id"]
           },
         ]
