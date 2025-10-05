@@ -8,11 +8,15 @@ export function useAdmin() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     async function checkAdminStatus() {
       if (!user) {
         console.log('[useAdmin] No user found');
-        setIsAdmin(false);
-        setLoading(false);
+        if (mounted) {
+          setIsAdmin(false);
+          setLoading(false);
+        }
         return;
       }
 
@@ -32,18 +36,28 @@ export function useAdmin() {
           console.error('[useAdmin] Error checking admin status:', error);
         }
 
-        const adminStatus = !!data;
-        console.log('[useAdmin] Admin status:', adminStatus);
-        setIsAdmin(adminStatus);
+        if (mounted) {
+          const adminStatus = !!data;
+          console.log('[useAdmin] Admin status:', adminStatus);
+          setIsAdmin(adminStatus);
+        }
       } catch (error) {
         console.error('[useAdmin] Unexpected error:', error);
-        setIsAdmin(false);
+        if (mounted) {
+          setIsAdmin(false);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
     checkAdminStatus();
+
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   return { isAdmin, loading };

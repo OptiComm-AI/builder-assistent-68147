@@ -14,9 +14,16 @@ export default function Admin() {
 
   useEffect(() => {
     console.log('[Admin Page] Status:', { loading, isAdmin });
+    
+    // Only redirect if we're done loading AND definitely not an admin
+    // Add a small delay to ensure the check completes
     if (!loading && !isAdmin) {
-      console.log('[Admin Page] Redirecting to dashboard - not admin');
-      navigate('/dashboard');
+      const timeoutId = setTimeout(() => {
+        console.log('[Admin Page] Redirecting to dashboard - not admin');
+        navigate('/dashboard');
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [isAdmin, loading, navigate]);
 
