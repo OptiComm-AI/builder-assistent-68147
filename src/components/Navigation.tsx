@@ -42,12 +42,9 @@ const Navigation = () => {
             <a href="#how-it-works" className="text-sm font-medium hover:text-primary transition-smooth">
               How It Works
             </a>
-            <a href="#pricing" className="text-sm font-medium hover:text-primary transition-smooth">
-              Pricing
-            </a>
-            <a href="#projects" className="text-sm font-medium hover:text-primary transition-smooth">
-              Projects
-            </a>
+            <button onClick={() => navigate("/chat")} className="text-sm font-medium hover:text-primary transition-smooth">
+              AI Chat
+            </button>
           </div>
           
           {/* CTA buttons */}
@@ -64,6 +61,9 @@ const Navigation = () => {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/chat")}>
+                    AI Chat
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                     <LogOut className="w-4 h-4 mr-2" />

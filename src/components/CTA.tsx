@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const benefits = [
   "Start for free, no credit card required",
@@ -9,6 +11,21 @@ const benefits = [
 ];
 
 const CTA = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleStartProject = () => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/auth");
+    }
+  };
+
+  const handleWatchDemo = () => {
+    document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <section className="py-24 relative overflow-hidden">
       {/* Background effects */}
@@ -36,11 +53,11 @@ const CTA = () => {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            <Button variant="hero" size="xl" className="group shadow-glow">
+            <Button variant="hero" size="xl" className="group shadow-glow" onClick={handleStartProject}>
               Start Your First Project
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
-            <Button variant="outline" size="xl">
+            <Button variant="outline" size="xl" onClick={handleWatchDemo}>
               Watch Demo Video
             </Button>
           </div>
