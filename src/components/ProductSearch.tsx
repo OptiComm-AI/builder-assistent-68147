@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ExternalLink, ShoppingCart, Check } from 'lucide-react';
+import { Loader2, ExternalLink, ShoppingCart, Check, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProductMatch {
@@ -16,6 +16,10 @@ interface ProductMatch {
   in_stock: boolean | null;
   match_score: number | null;
   is_selected: boolean;
+  bom_items?: {
+    item_name: string;
+    category: string;
+  };
 }
 
 interface Props {
@@ -36,14 +40,22 @@ export const ProductSearch = ({ bomItemId, onAddToList }: Props) => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch products with BOM item details
+      const { data: productsData, error: productsError } = await supabase
         .from('product_matches')
-        .select('*')
+        .select(`
+          *,
+          bom_items (
+            item_name,
+            category
+          )
+        `)
         .eq('bom_item_id', bomItemId)
         .order('match_score', { ascending: false });
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (productsError) throw productsError;
+      setProducts(productsData || []);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast({
@@ -100,17 +112,38 @@ export const ProductSearch = ({ bomItemId, onAddToList }: Props) => {
     );
   }
 
+  if (products.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground mb-2">No product matches found yet</p>
+          <p className="text-sm text-muted-foreground">
+            Try searching for products from the BOM Details tab
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {products.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              No products found. Click "Find Products" to search online.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Package className="h-5 w-5" />
+          Product Matches
+        </CardTitle>
+        <CardDescription>
+          Found {products.length} products from {new Set(products.map(p => p.vendor)).size} vendors
+          {products[0]?.bom_items?.item_name && (
+            <span className="ml-2">
+              for <strong>{products[0].bom_items.item_name}</strong>
+            </span>
+          )}
+        </CardDescription>
+      </CardHeader>
+      
+      <CardContent>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
             <Card key={product.id} className={`overflow-hidden ${product.is_selected ? 'border-primary' : ''}`}>
@@ -184,7 +217,7 @@ export const ProductSearch = ({ bomItemId, onAddToList }: Props) => {
             </Card>
           ))}
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 };

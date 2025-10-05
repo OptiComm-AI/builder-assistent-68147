@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Package, Search, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -30,13 +31,22 @@ interface BOM {
 interface Props {
   bomId: string;
   onSearchProducts: (itemId: string, searchQuery: string) => void;
+  onSearchSelected?: (items: Array<{ id: string; name: string }>) => void;
+  onSearchAll?: (items: Array<{ id: string; name: string }>) => void;
   isSearching?: boolean;
 }
 
-export const BOMReview = ({ bomId, onSearchProducts, isSearching = false }: Props) => {
+export const BOMReview = ({ 
+  bomId, 
+  onSearchProducts, 
+  onSearchSelected,
+  onSearchAll,
+  isSearching = false 
+}: Props) => {
   const [bom, setBom] = useState<BOM | null>(null);
   const [items, setItems] = useState<BOMItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,6 +95,48 @@ export const BOMReview = ({ bomId, onSearchProducts, isSearching = false }: Prop
     return acc;
   }, {} as Record<string, BOMItem[]>);
 
+  const handleToggleItem = (itemId: string, checked: boolean) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(itemId);
+      } else {
+        newSet.delete(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(items.map(item => item.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSearchSelected = () => {
+    const selectedItemsData = items
+      .filter(item => selectedItems.has(item.id))
+      .map(item => ({ id: item.id, name: item.item_name }));
+    
+    if (selectedItemsData.length === 0) {
+      toast({
+        title: 'No items selected',
+        description: 'Please select items to search',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    onSearchSelected?.(selectedItemsData);
+  };
+
+  const handleSearchAllItems = () => {
+    const allItemsData = items.map(item => ({ id: item.id, name: item.item_name }));
+    onSearchAll?.(allItemsData);
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'destructive';
@@ -105,18 +157,70 @@ export const BOMReview = ({ bomId, onSearchProducts, isSearching = false }: Prop
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Bill of Materials
-        </CardTitle>
-        <CardDescription>
-          Generated on {new Date(bom?.generated_at || '').toLocaleDateString()}
-          {bom?.total_estimated_cost && (
-            <span className="ml-4 text-lg font-semibold">
-              Total: ${bom.total_estimated_cost.toFixed(2)}
-            </span>
-          )}
-        </CardDescription>
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Bill of Materials
+            </CardTitle>
+            <CardDescription>
+              Generated on {new Date(bom?.generated_at || '').toLocaleDateString()}
+              {bom?.total_estimated_cost && (
+                <span className="ml-4 text-lg font-semibold">
+                  Total: ${bom.total_estimated_cost.toFixed(2)}
+                </span>
+              )}
+            </CardDescription>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mr-2">
+              <Checkbox
+                checked={selectedItems.size === items.length && items.length > 0}
+                onCheckedChange={handleSelectAll}
+                id="select-all"
+              />
+              <label htmlFor="select-all" className="text-sm cursor-pointer">
+                Select All
+              </label>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSearchSelected}
+              disabled={isSearching || selectedItems.size === 0}
+            >
+              {isSearching ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4 mr-1" />
+                  Search Selected ({selectedItems.size})
+                </>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSearchAllItems}
+              disabled={isSearching}
+            >
+              {isSearching ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4 mr-1" />
+                  Search All
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </CardHeader>
 
       <CardContent>
@@ -146,7 +250,13 @@ export const BOMReview = ({ bomId, onSearchProducts, isSearching = false }: Prop
                     {categoryItems.map((item) => (
                       <Card key={item.id} className="border-l-4 border-l-primary">
                         <CardContent className="pt-4">
-                          <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={selectedItems.has(item.id)}
+                              onCheckedChange={(checked) => handleToggleItem(item.id, checked as boolean)}
+                              className="mt-1"
+                            />
+                            
                             <div className="flex-1">
                               <h4 className="font-semibold">{item.item_name}</h4>
                               {item.description && (

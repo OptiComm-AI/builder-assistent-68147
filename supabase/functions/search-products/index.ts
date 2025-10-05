@@ -20,16 +20,19 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { bomItemId, searchQuery, language = 'en' } = await req.json();
-    console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery, 'Language:', language);
+    try {
+      const { bomItemId, searchQuery, language = 'en' } = await req.json();
+      console.log('=== PRODUCT SEARCH START ===');
+      console.log('BOM Item ID:', bomItemId);
+      console.log('Search Query:', searchQuery);
+      console.log('Language:', language);
 
-    const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
+      const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')!;
+      const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch BOM item details for context
     const { data: bomItem, error: itemError } = await supabase
@@ -50,24 +53,25 @@ serve(async (req) => {
     if (vendorError) throw vendorError;
 
     if (!vendors || vendors.length === 0) {
-      console.log('No active vendors configured');
+      console.log('❌ No active vendors configured');
       return new Response(
-        JSON.stringify({ success: true, matchCount: 0, matches: [], message: 'No active vendors configured' }),
+        JSON.stringify({ success: false, matchCount: 0, matches: [], error: 'No active vendors configured' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${vendors.length} active vendors to search`);
+    console.log(`✓ Found ${vendors.length} active vendors to search:`, vendors.map(v => v.name));
 
     const productMatches = [];
 
     for (const vendor of vendors) {
       const searchUrl = vendor.search_url_template.replace('{query}', encodeURIComponent(searchQuery));
       
-      console.log(`Scraping ${vendor.name}:`, searchUrl);
+      console.log(`\n--- Searching ${vendor.name} ---`);
+      console.log('URL:', searchUrl);
 
       try {
-        // Call Firecrawl to scrape the search results
+        // Call Firecrawl to scrape the search results with structured formats
         const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
           method: 'POST',
           headers: {
@@ -76,42 +80,82 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             url: searchUrl,
-            formats: ['markdown']
+            formats: ['markdown', 'html', 'links']
           })
         });
 
         if (!scrapeResponse.ok) {
-          console.error(`Firecrawl error for ${vendor.name}:`, await scrapeResponse.text());
+          const errorText = await scrapeResponse.text();
+          console.error(`❌ Firecrawl error for ${vendor.name}:`, scrapeResponse.status, errorText);
           continue;
         }
 
         const scrapeData = await scrapeResponse.json();
         const scrapedContent = scrapeData.data?.markdown || '';
+        const htmlContent = scrapeData.data?.html || '';
         
-        console.log(`Scraped ${vendor.name}, content length:`, scrapedContent.length);
+        console.log(`✓ Scraped ${vendor.name}`);
+        console.log('  Markdown length:', scrapedContent.length);
+        console.log('  HTML length:', htmlContent.length);
+        console.log('  Content preview:', scrapedContent.slice(0, 200));
 
         // Use AI to extract product information from scraped content
         const systemPrompt = language === 'ro'
-          ? `Ești un expert în extragerea de produse. Extrage până la 5 produse relevante din conținutul scrapat.
-                
-Articol țintă: ${bomItem.item_name}
+          ? `Ești un expert în extragerea de informații despre produse din rezultatele căutărilor pe site-uri de vânzări online.
+
+Articol căutat: ${bomItem.item_name}
 Descriere: ${bomItem.description || 'N/A'}
 Categorie: ${bomItem.category}
 Unitate: ${bomItem.unit}
 
-Returnează produse care se potrivesc acestei specificații. Păstrează numele produselor în limba română.`
-          : `You are a product extraction expert. Extract up to 5 relevant products from scraped content.
-                
+SARCINA TA:
+1. Analizează conținutul scrapat de pe ${vendor.name}
+2. Identifică produsele individuale care se potrivesc articolului căutat
+3. Extrage EXACT aceste detalii pentru fiecare produs:
+   - Numele produsului (așa cum apare pe site)
+   - Prețul în RON (doar numărul, fără "RON" sau alte simboluri)
+   - URL-ul produsului (link complet către pagina produsului)
+   - URL-ul imaginii produsului (dacă este disponibil)
+   - Disponibilitatea în stoc (true/false)
+   - Scorul de potrivire (0-100, unde 100 = potrivire perfectă)
+
+4. Returnează maxim 5 produse, ordonate după scorul de potrivire
+
+IMPORTANT: 
+- Dacă nu găsești produse clare în conținut, returnează un array gol
+- Asigură-te că prețurile sunt numere valide
+- URL-urile trebuie să înceapă cu http:// sau https://`
+          : `You are an expert at extracting product information from online store search results.
+
 Target item: ${bomItem.item_name}
 Description: ${bomItem.description || 'N/A'}
 Category: ${bomItem.category}
 Unit: ${bomItem.unit}
 
-Return products that match this specification.`;
+YOUR TASK:
+1. Analyze the scraped content from ${vendor.name}
+2. Identify individual products that match the target item
+3. Extract EXACTLY these details for each product:
+   - Product name (as shown on the site)
+   - Price in local currency (just the number, no currency symbols)
+   - Product URL (full link to product page)
+   - Product image URL (if available)
+   - Stock availability (true/false)
+   - Match score (0-100, where 100 = perfect match)
 
+4. Return up to 5 products, ordered by match score
+
+IMPORTANT:
+- If you can't find clear products in the content, return an empty array
+- Ensure prices are valid numbers
+- URLs must start with http:// or https://`;
+
+        const contentToAnalyze = scrapedContent.slice(0, 6000);
         const userPrompt = language === 'ro'
-          ? `Extrage produse din aceste rezultate de la ${vendor.name}:\n\n${scrapedContent.slice(0, 4000)}`
-          : `Extract products from this ${vendor.name} search results:\n\n${scrapedContent.slice(0, 4000)}`;
+          ? `Analizează următorul conținut scrapat de pe ${vendor.name} și extrage produsele:\n\n${contentToAnalyze}`
+          : `Analyze this scraped content from ${vendor.name} and extract products:\n\n${contentToAnalyze}`;
+        
+        console.log('  Sending to AI for extraction...');
 
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
@@ -164,13 +208,18 @@ Return products that match this specification.`;
 
         if (aiResponse.ok) {
           const aiData = await aiResponse.json();
+          console.log('  AI Response received');
+          
           const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
           
           if (toolCall) {
             const extractedData = JSON.parse(toolCall.function.arguments);
             const products = extractedData.products || [];
             
-            console.log(`Extracted ${products.length} products from ${vendor.name}`);
+            console.log(`  ✓ Extracted ${products.length} products from ${vendor.name}`);
+            if (products.length > 0) {
+              console.log('  Sample product:', products[0].product_name, '-', products[0].price);
+            }
 
             productMatches.push(...products.map((p: any) => ({
               bom_item_id: bomItemId,
@@ -183,28 +232,42 @@ Return products that match this specification.`;
               match_score: p.match_score || 50,
               product_details: { raw_data: p }
             })));
+          } else {
+            console.log('  ⚠ No tool call in AI response');
           }
+        } else {
+          const errorText = await aiResponse.text();
+          console.error(`  ❌ AI extraction failed for ${vendor.name}:`, aiResponse.status, errorText);
         }
       } catch (vendorError) {
-        console.error(`Error scraping ${vendor.name}:`, vendorError);
+        console.error(`❌ Error processing ${vendor.name}:`, vendorError);
       }
     }
 
     // Insert product matches into database
+    console.log(`\n=== SEARCH COMPLETE ===`);
+    console.log(`Total products found: ${productMatches.length}`);
+    
     if (productMatches.length > 0) {
       const { error: insertError } = await supabase
         .from('product_matches')
         .insert(productMatches);
 
-      if (insertError) throw insertError;
-      console.log('Inserted', productMatches.length, 'product matches');
+      if (insertError) {
+        console.error('❌ Database insert error:', insertError);
+        throw insertError;
+      }
+      console.log('✓ Inserted', productMatches.length, 'product matches into database');
+    } else {
+      console.log('⚠ No products found from any vendor');
     }
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: productMatches.length > 0,
         matchCount: productMatches.length,
-        matches: productMatches
+        matches: productMatches,
+        message: productMatches.length === 0 ? 'No products found from vendors. Try adjusting your search query.' : undefined
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

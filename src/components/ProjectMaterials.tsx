@@ -99,25 +99,24 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
     }
   };
 
+  const detectLanguage = () => {
+    const projectName = boms?.[0]?.conversations?.title || '';
+    const bomText = JSON.stringify(boms?.[0] || '');
+    const combinedText = projectName + bomText;
+    
+    // Romanian detection: special characters and common words
+    if (/[ăâîșțĂÂÎȘȚ]/.test(combinedText) || 
+        /\b(și|sau|este|sunt|pentru|cu|la|în|pe|de)\b/i.test(combinedText)) {
+      return 'ro';
+    }
+    return 'en';
+  };
+
   const handleSearchProducts = async (bomItemId: string, searchQuery: string) => {
     setSelectedBomItemId(bomItemId);
     setIsSearching(true);
     
     try {
-      // Detect language from project data or recent BOM items
-      const detectLanguage = () => {
-        const projectName = boms?.[0]?.conversations?.title || '';
-        const bomText = JSON.stringify(boms?.[0] || '');
-        const combinedText = projectName + bomText;
-        
-        // Romanian detection: special characters and common words
-        if (/[ăâîșțĂÂÎȘȚ]/.test(combinedText) || 
-            /\b(și|sau|este|sunt|pentru|cu|la|în|pe|de)\b/i.test(combinedText)) {
-          return 'ro';
-        }
-        return 'en';
-      };
-
       const language = detectLanguage();
       console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery, 'Language:', language);
       
@@ -131,12 +130,19 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
 
       if (error) throw error;
 
+      const message = data.matchCount > 0 
+        ? `Found ${data.matchCount} products from vendors`
+        : data.message || 'No products found';
+
       toast({
-        title: "Product Search Complete",
-        description: `Found ${data.matchCount} products from vendors`,
+        title: data.matchCount > 0 ? "Product Search Complete" : "No Products Found",
+        description: message,
+        variant: data.matchCount > 0 ? "default" : "destructive",
       });
 
-      setActiveTab("products");
+      if (data.matchCount > 0) {
+        setActiveTab("products");
+      }
     } catch (error: any) {
       console.error("Error searching products:", error);
       toast({
@@ -147,6 +153,66 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const handleBulkSearchProducts = async (items: Array<{ id: string; name: string }>) => {
+    setIsSearching(true);
+    let completed = 0;
+    let totalFound = 0;
+    const language = detectLanguage();
+    
+    toast({
+      title: "Bulk Search Started",
+      description: `Searching for ${items.length} items...`,
+    });
+
+    for (const item of items) {
+      try {
+        console.log(`Searching ${completed + 1}/${items.length}:`, item.name);
+        
+        const { data, error } = await sb.functions.invoke("search-products", {
+          body: { 
+            bomItemId: item.id,
+            searchQuery: item.name,
+            language
+          },
+        });
+
+        if (!error && data.matchCount > 0) {
+          totalFound += data.matchCount;
+          setSelectedBomItemId(item.id); // Set last successful item
+        }
+
+        completed++;
+        
+        // Show progress
+        toast({
+          title: `Progress: ${completed}/${items.length}`,
+          description: `Found ${totalFound} products so far`,
+        });
+      } catch (error) {
+        console.error(`Failed to search for ${item.name}:`, error);
+      }
+    }
+    
+    setIsSearching(false);
+    
+    toast({
+      title: "Bulk Search Complete",
+      description: `Searched ${completed} items. Found ${totalFound} total products.`,
+    });
+
+    if (totalFound > 0) {
+      setActiveTab("products");
+    }
+  };
+
+  const handleSearchSelected = (items: Array<{ id: string; name: string }>) => {
+    handleBulkSearchProducts(items);
+  };
+
+  const handleSearchAll = (items: Array<{ id: string; name: string }>) => {
+    handleBulkSearchProducts(items);
   };
 
   if (isLoading) {
@@ -235,6 +301,8 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
               <BOMReview
                 bomId={selectedBomId}
                 onSearchProducts={handleSearchProducts}
+                onSearchSelected={handleSearchSelected}
+                onSearchAll={handleSearchAll}
                 isSearching={isSearching}
               />
             </TabsContent>
