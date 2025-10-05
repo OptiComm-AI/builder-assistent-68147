@@ -7,37 +7,76 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Simple language detection based on common words
+// Improved language detection with scoring system
 function detectLanguage(text: string): string {
   const lowerText = text.toLowerCase();
   
-  // English detection
-  if (/\b(the|is|are|to|of|and|a|in|that|have|it|for|not|on|with|he|as|you|do|at|this|but|his|by|from)\b/.test(lowerText)) {
-    return "English";
-  }
+  // Count matches for each language (more specific words = higher score)
+  const scores: Record<string, number> = {
+    Romanian: 0,
+    English: 0,
+    Spanish: 0,
+    French: 0,
+    German: 0,
+  };
   
-  // Romanian detection
-  if (/\b(este|sunt|de|și|în|cu|la|pentru|un|o|pe|ce|mai|din|care|să|fi|ai|era|cel|lui|dar|dacă|când)\b/.test(lowerText)) {
-    return "Romanian";
-  }
+  // Romanian detection (specific words that are unlikely in other languages)
+  const romanianWords = [
+    'salut', 'bună', 'mulțumesc', 'vă', 'aș', 'avea', 'nevoie', 'vreau', 'doresc',
+    'privind', 'despre', 'faianta', 'backsplash', 'bucătărie', 'baie', 
+    'este', 'sunt', 'își', 'să', 'dacă', 'când', 'pentru', 'mai', 'foarte'
+  ];
+  romanianWords.forEach(word => {
+    if (new RegExp(`\\b${word}\\b`, 'i').test(lowerText)) {
+      scores.Romanian += 2; // Higher weight for specific words
+    }
+  });
+  
+  // English detection (common but less specific)
+  const englishWords = ['hello', 'thanks', 'please', 'would', 'need', 'want', 'about', 'kitchen', 'bathroom', 'tile', 'the', 'have'];
+  englishWords.forEach(word => {
+    if (new RegExp(`\\b${word}\\b`, 'i').test(lowerText)) {
+      scores.English += 1;
+    }
+  });
   
   // Spanish detection
-  if (/\b(el|la|de|que|y|a|en|un|ser|se|no|haber|por|con|su|para|como|estar|tener|le|lo|todo|pero|más)\b/.test(lowerText)) {
-    return "Spanish";
-  }
+  const spanishWords = ['hola', 'gracias', 'quiero', 'necesito', 'cocina', 'baño', 'azulejo', 'el', 'la', 'que'];
+  spanishWords.forEach(word => {
+    if (new RegExp(`\\b${word}\\b`, 'i').test(lowerText)) {
+      scores.Spanish += 1;
+    }
+  });
   
   // French detection
-  if (/\b(le|de|un|être|et|à|il|avoir|ne|je|son|que|se|qui|ce|dans|en|du|elle|au|pour|pas|que|vous)\b/.test(lowerText)) {
-    return "French";
-  }
+  const frenchWords = ['bonjour', 'merci', 'veux', 'besoin', 'cuisine', 'salle', 'carrelage', 'le', 'de', 'que'];
+  frenchWords.forEach(word => {
+    if (new RegExp(`\\b${word}\\b`, 'i').test(lowerText)) {
+      scores.French += 1;
+    }
+  });
   
   // German detection
-  if (/\b(der|die|und|in|den|von|zu|das|mit|sich|des|auf|für|ist|im|dem|nicht|ein|eine|als|auch|es|an)\b/.test(lowerText)) {
-    return "German";
+  const germanWords = ['hallo', 'danke', 'brauche', 'möchte', 'küche', 'bad', 'fliese', 'der', 'die', 'das'];
+  germanWords.forEach(word => {
+    if (new RegExp(`\\b${word}\\b`, 'i').test(lowerText)) {
+      scores.German += 1;
+    }
+  });
+  
+  // Find the language with the highest score
+  let maxScore = 0;
+  let detectedLang = "English"; // default
+  
+  for (const [lang, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      detectedLang = lang;
+    }
   }
   
-  // Default to English if no pattern matches
-  return "English";
+  console.log("Language detection scores:", scores, "-> Detected:", detectedLang);
+  return detectedLang;
 }
 
 // Background function to extract and update project data
@@ -229,7 +268,14 @@ serve(async (req) => {
     const detectedLanguage = detectLanguage(userLastMessage);
     
     // Build system prompt based on authentication status and onboarding needs
-    let systemPrompt = `CRITICAL LANGUAGE INSTRUCTION: The user is writing in ${detectedLanguage}. You MUST respond ONLY in ${detectedLanguage}. Never switch languages unless the user explicitly switches.\n\n`;
+    let systemPrompt = `🔴 CRITICAL LANGUAGE INSTRUCTION 🔴
+YOU MUST RESPOND ONLY IN ${detectedLanguage.toUpperCase()}.
+The user wrote their message in ${detectedLanguage}. YOU MUST REPLY IN ${detectedLanguage}.
+DO NOT use English if the user writes in Romanian.
+DO NOT use Romanian if the user writes in English.
+MATCH THE USER'S LANGUAGE EXACTLY.
+
+`;
     
     if (needsOnboarding && isAuthenticated) {
       systemPrompt += `You are an AI Project Discovery Assistant conducting an intelligent, conversational onboarding for a renovation/design project.

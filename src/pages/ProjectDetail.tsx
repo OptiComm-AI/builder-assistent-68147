@@ -163,7 +163,7 @@ const ProjectDetail = () => {
             {renderProjectDetails()}
           </div>
           
-          <div className="sticky top-6 h-[calc(100vh-8rem)]">
+          <div className="sticky top-6 h-[calc(100vh-12rem)]">
             <AIChat 
               projectId={project.id} 
               mode="dedicated"

@@ -709,8 +709,8 @@ const AIChat = ({
           </div>
         </div>
       )}
-      <div className={mode === 'dedicated' ? "flex-1 flex flex-col" : "flex-1 flex items-center justify-center p-4"}>
-        <div className={mode === 'dedicated' ? "w-full h-full flex flex-col" : "w-full max-w-4xl h-full flex flex-col"}>
+      <div className={mode === 'dedicated' ? "flex-1 min-h-0 flex flex-col" : "flex-1 flex items-center justify-center p-4"}>
+        <div className={mode === 'dedicated' ? "w-full h-full min-h-0 flex flex-col" : "w-full max-w-4xl h-full flex flex-col"}>
           <div className={`bg-card border border-border/50 overflow-hidden flex flex-col h-full ${mode === 'dedicated' ? 'rounded-lg' : 'rounded-2xl shadow-elegant'}`}>
             {/* Chat header */}
             <div className="gradient-hero p-6 flex items-center gap-4 justify-between">
@@ -779,7 +779,7 @@ const AIChat = ({
             )}
             
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/20">
+            <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4 bg-muted/20">
               {messages.map((message, index) => (
                 <div 
                   key={index}
@@ -791,11 +791,11 @@ const AIChat = ({
                     </div>
                   )}
                   
-                <div className={`max-w-[calc(100%-3rem)] px-4 py-3 rounded-2xl break-words overflow-hidden ${
+                <div className={`max-w-[85%] px-4 py-3 rounded-2xl break-words overflow-hidden ${
                   message.role === "user" 
                     ? "bg-primary text-primary-foreground ml-auto" 
                     : "bg-card border border-border/50"
-                }`}>
+                }`} style={{ overflowWrap: 'break-word' }}>
                     {message.image_url && (
                       <img
                         src={message.image_url}
