@@ -52,6 +52,7 @@ const AIChat = ({
   const [messageCount, setMessageCount] = useState(0);
   const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [userProjects, setUserProjects] = useState<{id: string, name: string}[]>([]);
+  const [projectContext, setProjectContext] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -64,6 +65,11 @@ const AIChat = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Sync projectId prop changes
+  useEffect(() => {
+    setCurrentProjectId(projectId);
+  }, [projectId]);
 
   // Fetch user's projects for project selector
   useEffect(() => {
@@ -78,6 +84,22 @@ const AIChat = ({
         });
     }
   }, [user, mode]);
+
+  // Fetch project context when projectId is set
+  useEffect(() => {
+    if (currentProjectId && currentProjectId !== 'new') {
+      supabase
+        .from('projects')
+        .select('id, name, budget, phase, status, timeline_weeks')
+        .eq('id', currentProjectId)
+        .single()
+        .then(({ data }) => {
+          if (data) setProjectContext(data);
+        });
+    } else {
+      setProjectContext(null);
+    }
+  }, [currentProjectId]);
 
   // Load conversation messages or localStorage for anonymous users
   useEffect(() => {
@@ -300,7 +322,7 @@ const AIChat = ({
         body: JSON.stringify({ 
           messages: messagesToSend,
           conversationId: convId,
-          projectId: projectId
+          projectId: currentProjectId || projectId
         }),
       });
 
@@ -496,7 +518,7 @@ const AIChat = ({
           body: JSON.stringify({ 
             messages: updatedMessages,
             conversationId: null,
-            projectId: null,
+            projectId: currentProjectId || null,
             isAnonymous: true
           }),
         });
@@ -660,6 +682,34 @@ const AIChat = ({
                 </div>
               </div>
             </div>
+            
+            {/* Project Context Display */}
+            {projectContext && (
+              <div className="px-4 pt-4 pb-2 border-b border-border/30 bg-primary/5">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">Discussing:</span>
+                  <span className="font-semibold text-foreground">{projectContext.name}</span>
+                  {projectContext.budget && (
+                    <>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">${projectContext.budget.toLocaleString()} budget</span>
+                    </>
+                  )}
+                  {projectContext.timeline_weeks && (
+                    <>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground">{projectContext.timeline_weeks} weeks</span>
+                    </>
+                  )}
+                  {projectContext.phase && (
+                    <>
+                      <span className="text-muted-foreground">•</span>
+                      <span className="text-muted-foreground capitalize">{projectContext.phase}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
             
             {/* Project Selector for logged-in users on homepage */}
             {user && mode === 'homepage' && (
