@@ -23,6 +23,7 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
   const [selectedBomId, setSelectedBomId] = useState<string | null>(null);
   const [selectedBomItemId, setSelectedBomItemId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Fetch all BOMs for this project
@@ -98,9 +99,38 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
     }
   };
 
-  const handleSearchProducts = (bomItemId: string) => {
+  const handleSearchProducts = async (bomItemId: string, searchQuery: string) => {
     setSelectedBomItemId(bomItemId);
-    setActiveTab("products");
+    setIsSearching(true);
+    
+    try {
+      console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery);
+      
+      const { data, error } = await sb.functions.invoke("search-products", {
+        body: { 
+          bomItemId,
+          searchQuery
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Product Search Complete",
+        description: `Found ${data.matchCount} products from vendors`,
+      });
+
+      setActiveTab("products");
+    } catch (error: any) {
+      console.error("Error searching products:", error);
+      toast({
+        title: "Search Error",
+        description: error.message || "Failed to search for products",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   if (isLoading) {
@@ -189,6 +219,7 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
               <BOMReview
                 bomId={selectedBomId}
                 onSearchProducts={handleSearchProducts}
+                isSearching={isSearching}
               />
             </TabsContent>
 

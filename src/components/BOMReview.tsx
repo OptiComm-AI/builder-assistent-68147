@@ -30,9 +30,10 @@ interface BOM {
 interface Props {
   bomId: string;
   onSearchProducts: (itemId: string, searchQuery: string) => void;
+  isSearching?: boolean;
 }
 
-export const BOMReview = ({ bomId, onSearchProducts }: Props) => {
+export const BOMReview = ({ bomId, onSearchProducts, isSearching = false }: Props) => {
   const [bom, setBom] = useState<BOM | null>(null);
   const [items, setItems] = useState<BOMItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -188,9 +189,19 @@ export const BOMReview = ({ bomId, onSearchProducts }: Props) => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => onSearchProducts(item.id, item.item_name)}
+                                disabled={isSearching}
                               >
-                                <Search className="h-4 w-4 mr-1" />
-                                Find Products
+                                {isSearching ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    Searching...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Search className="h-4 w-4 mr-1" />
+                                    Find Products
+                                  </>
+                                )}
                               </Button>
                             </div>
                           </div>
