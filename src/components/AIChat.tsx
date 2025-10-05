@@ -773,6 +773,67 @@ const AIChat = ({
     }]);
   };
 
+  const handleGenerateBOM = async () => {
+    if (!currentConversationId || !currentProjectId) {
+      toast({
+        title: "Cannot Generate BOM",
+        description: "Please start a conversation and select a project first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setBomGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-bom', {
+        body: {
+          conversationId: currentConversationId,
+          projectId: currentProjectId
+        }
+      });
+      
+      if (error) throw error;
+      
+      setCurrentBomId(data.bomId);
+      toast({
+        title: "BOM Generated",
+        description: `Created ${data.itemCount} items totaling $${data.totalCost.toFixed(2)}`,
+      });
+    } catch (error) {
+      console.error("Error generating BOM:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate Bill of Materials",
+        variant: "destructive",
+      });
+    } finally {
+      setBomGenerating(false);
+    }
+  };
+
+  const handleSearchProducts = async (bomItemId: string) => {
+    setSelectedBomItemId(bomItemId);
+    try {
+      const { error } = await supabase.functions.invoke('search-products', {
+        body: { bomItemId }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Product Search Complete",
+        description: "Found matching products from multiple vendors",
+      });
+    } catch (error) {
+      console.error("Error searching products:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search for products",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {showSignupPrompt && mode === 'homepage' && !user && (
@@ -972,6 +1033,74 @@ const AIChat = ({
               
               <div ref={messagesEndRef} />
             </div>
+            
+            {/* BOM Generation Button */}
+            {user && currentConversationId && currentProjectId && !currentBomId && (
+              <div className="p-4 border-t border-b border-border/50 bg-card/50">
+                <Button
+                  onClick={handleGenerateBOM}
+                  disabled={bomGenerating}
+                  className="w-full"
+                  variant="outline"
+                >
+                  {bomGenerating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generating Bill of Materials...
+                    </>
+                  ) : (
+                    <>
+                      <Package className="w-4 h-4 mr-2" />
+                      Generate Bill of Materials
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+            
+            {/* BOM Management Tabs */}
+            {currentBomId && (
+              <div className="border-t border-border/50 bg-muted/20 max-h-[500px] overflow-hidden">
+                <Tabs defaultValue="bom" className="h-full flex flex-col">
+                  <TabsList className="w-full justify-start rounded-none border-b bg-card/50">
+                    <TabsTrigger value="bom">Bill of Materials</TabsTrigger>
+                    <TabsTrigger value="products">Product Search</TabsTrigger>
+                    <TabsTrigger value="shopping">Shopping List</TabsTrigger>
+                  </TabsList>
+                  
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <TabsContent value="bom" className="mt-0">
+                      <BOMReview 
+                        bomId={currentBomId}
+                        onSearchProducts={handleSearchProducts}
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="products" className="mt-0">
+                      {selectedBomItemId ? (
+                        <ProductSearch
+                          bomItemId={selectedBomItemId}
+                          onAddToList={() => {
+                            toast({ 
+                              title: "Added to shopping list",
+                              description: "Product has been added to your shopping list"
+                            });
+                          }}
+                        />
+                      ) : (
+                        <div className="text-center text-muted-foreground py-8">
+                          Select an item from the Bill of Materials to search for products
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="shopping" className="mt-0">
+                      <ShoppingList bomId={currentBomId} />
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </div>
+            )}
             
             {/* Input */}
             <div className="p-6 border-t border-border/50 bg-card">
