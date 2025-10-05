@@ -25,10 +25,24 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch project context if projectId is provided
-    let systemPrompt = `You are an AI Project Assistant specializing in home renovation and interior design projects. You help users plan, design, and manage their projects with expert guidance.
+    // Check if any message contains an image
+    const hasImages = messages.some((msg: any) => msg.image_url);
+
+    // Build system prompt with vision capabilities
+    let systemPrompt = `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
 
 Your capabilities:
+${hasImages ? `
+**Visual Analysis** - When analyzing images:
+- Describe room layouts, dimensions, and spatial relationships
+- Identify current conditions, materials, and finishes
+- Analyze design elements, styles, and existing features
+- Assess natural and artificial lighting
+- Detect potential issues (damage, structural concerns, poor layouts)
+- Suggest specific improvements based on what you see
+- Recommend materials, colors, and finishes that complement the space
+- Provide actionable renovation/design suggestions
+` : ''}
 - Provide budget advice and timeline suggestions
 - Recommend materials, styles, and layouts
 - Help track project progress and milestones
@@ -57,7 +71,24 @@ Provide guidance specific to this project's phase and context. Reference the pro
       }
     }
 
-    console.log("Calling Lovable AI with messages:", messages.length);
+    // Format messages for multimodal (text + images)
+    const formattedMessages = messages.map((msg: any) => {
+      if (msg.image_url) {
+        return {
+          role: msg.role,
+          content: [
+            { type: "text", text: msg.content },
+            { type: "image_url", image_url: { url: msg.image_url } }
+          ]
+        };
+      }
+      return msg;
+    });
+
+    // Use gemini-2.5-pro for vision, flash for text-only
+    const model = hasImages ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash";
+
+    console.log("Calling Lovable AI with model:", model, "messages:", messages.length);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -66,10 +97,10 @@ Provide guidance specific to this project's phase and context. Reference the pro
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...formattedMessages,
         ],
         stream: true,
       }),

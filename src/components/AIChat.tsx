@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, User, Bot } from "lucide-react";
+import { Send, Sparkles, User, Bot, Image as ImageIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import aiIcon from "@/assets/ai-icon.png";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  image_url?: string;
 }
 
 const AIChat = () => {
@@ -19,7 +21,10 @@ const AIChat = () => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const scrollToBottom = () => {
@@ -30,7 +35,72 @@ const AIChat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const streamChat = async (userMessage: string) => {
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image under 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select a JPG, PNG, or WebP image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-images')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const streamChat = async (messagesToSend: Message[]) => {
     setIsLoading(true);
     let assistantContent = "";
 
@@ -44,7 +114,7 @@ const AIChat = () => {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ 
-          messages: [...messages, { role: "user", content: userMessage }]
+          messages: messagesToSend
         }),
       });
 
@@ -159,14 +229,28 @@ const AIChat = () => {
     }
   };
 
-  const handleSend = () => {
-    if (!input.trim() || isLoading) return;
+  const handleSend = async () => {
+    if ((!input.trim() && !selectedImage) || isLoading) return;
     
-    const userMessage = input.trim();
-    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    let imageUrl: string | null = null;
+
+    if (selectedImage) {
+      imageUrl = await uploadImage(selectedImage);
+      if (!imageUrl) return;
+    }
+
+    const userMessage: Message = {
+      role: "user",
+      content: input.trim() || "Please analyze this image",
+      ...(imageUrl && { image_url: imageUrl })
+    };
+
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput("");
+    clearImage();
     
-    streamChat(userMessage);
+    streamChat(updatedMessages);
   };
 
   return (
@@ -216,6 +300,14 @@ const AIChat = () => {
                       ? "bg-primary text-primary-foreground ml-auto" 
                       : "bg-card border border-border/50"
                   }`}>
+                    {message.image_url && (
+                      <img
+                        src={message.image_url}
+                        alt="Uploaded"
+                        className="max-w-full rounded-lg mb-2 cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(message.image_url, '_blank')}
+                      />
+                    )}
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                   </div>
                   
@@ -231,12 +323,42 @@ const AIChat = () => {
             
             {/* Input */}
             <div className="p-6 border-t border-border/50 bg-card">
+              {imagePreview && (
+                <div className="mb-3 relative inline-block">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="max-h-32 rounded-lg border"
+                  />
+                  <button
+                    onClick={clearImage}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 hover:bg-destructive/90"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
               <div className="flex gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                >
+                  <ImageIcon className="w-5 h-5" />
+                </Button>
                 <Input 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  placeholder="Describe your project or ask a question..."
+                  placeholder="Describe your project or upload an image..."
                   className="flex-1 h-12 text-base"
                   disabled={isLoading}
                 />
@@ -245,7 +367,7 @@ const AIChat = () => {
                   variant="hero"
                   size="lg"
                   className="px-6"
-                  disabled={isLoading || !input.trim()}
+                  disabled={isLoading || (!input.trim() && !selectedImage)}
                 >
                   <Send className="w-5 h-5" />
                 </Button>
