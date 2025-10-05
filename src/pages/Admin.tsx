@@ -13,7 +13,9 @@ export default function Admin() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('[Admin Page] Status:', { loading, isAdmin });
     if (!loading && !isAdmin) {
+      console.log('[Admin Page] Redirecting to dashboard - not admin');
       navigate('/dashboard');
     }
   }, [isAdmin, loading, navigate]);

@@ -10,10 +10,13 @@ export function useAdmin() {
   useEffect(() => {
     async function checkAdminStatus() {
       if (!user) {
+        console.log('[useAdmin] No user found');
         setIsAdmin(false);
         setLoading(false);
         return;
       }
+
+      console.log('[useAdmin] Checking admin status for user:', user.id);
 
       try {
         const { data, error } = await supabase
@@ -21,15 +24,19 @@ export function useAdmin() {
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'admin')
-          .single();
+          .maybeSingle();
+
+        console.log('[useAdmin] Query result:', { data, error });
 
         if (error && error.code !== 'PGRST116') {
-          console.error('Error checking admin status:', error);
+          console.error('[useAdmin] Error checking admin status:', error);
         }
 
-        setIsAdmin(!!data);
+        const adminStatus = !!data;
+        console.log('[useAdmin] Admin status:', adminStatus);
+        setIsAdmin(adminStatus);
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('[useAdmin] Unexpected error:', error);
         setIsAdmin(false);
       } finally {
         setLoading(false);
