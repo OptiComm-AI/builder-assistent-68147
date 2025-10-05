@@ -457,7 +457,7 @@ const AIChat = ({
   const handleSend = async () => {
     if ((!input.trim() && !selectedImage) || isLoading) return;
     
-    // For anonymous users in homepage mode
+    // For anonymous users in homepage mode - stream AI chat without saving to DB
     if (mode === 'homepage' && !user) {
       const userMessage: Message = {
         role: "user",
@@ -475,21 +475,100 @@ const AIChat = ({
       
       setMessageCount(prev => prev + 1);
       
-      // Show signup prompt after 3-5 messages
-      if (messageCount >= 3 && !showSignupPrompt) {
+      // Show signup prompt after 3 messages
+      if (messageCount >= 2 && !showSignupPrompt) {
         setShowSignupPrompt(true);
       }
       
-      // Simple mock response for anonymous users
-      setTimeout(() => {
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: "That sounds like an exciting project! To save our conversation and get personalized project management features, I recommend creating a free account. Would you like to sign up?"
-        };
-        const withAssistant = [...updatedMessages, assistantMessage];
-        setMessages(withAssistant);
-        localStorage.setItem(`anonymous-chat-${anonymousSessionId}`, JSON.stringify(withAssistant));
-      }, 1000);
+      // Stream AI chat for anonymous users (no DB save)
+      setIsLoading(true);
+      let assistantContent = "";
+      
+      try {
+        const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+        
+        const response = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            messages: updatedMessages,
+            conversationId: null,
+            projectId: null,
+            isAnonymous: true
+          }),
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error("Failed to connect to AI");
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = "";
+        let streamDone = false;
+
+        // Add empty assistant message
+        setMessages(prev => [...prev, { role: "assistant", content: "" }]);
+
+        while (!streamDone) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          textBuffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") {
+              streamDone = true;
+              break;
+            }
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                assistantContent += content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  newMessages[newMessages.length - 1] = {
+                    role: "assistant",
+                    content: assistantContent
+                  };
+                  return newMessages;
+                });
+              }
+            } catch (e) {
+              textBuffer = line + "\n" + textBuffer;
+              break;
+            }
+          }
+        }
+        
+        // Save final conversation to localStorage
+        const finalMessages = [...updatedMessages, { role: "assistant", content: assistantContent }];
+        localStorage.setItem(`anonymous-chat-${anonymousSessionId}`, JSON.stringify(finalMessages));
+      } catch (error) {
+        console.error("Chat error:", error);
+        toast({
+          title: "Error",
+          description: "Failed to send message. Please try again.",
+          variant: "destructive",
+        });
+        setMessages(prev => prev.slice(0, -1));
+      } finally {
+        setIsLoading(false);
+      }
       
       return;
     }
@@ -536,11 +615,7 @@ const AIChat = ({
     
     setMessageCount(prev => prev + 1);
     
-    // Extract project info every 5 messages for logged-in users
-    if (messageCount > 0 && messageCount % 5 === 0) {
-      extractProjectInfo(updatedMessages);
-    }
-    
+    // Note: Project extraction happens automatically in the edge function
     streamChat(updatedMessages, convId);
   };
 

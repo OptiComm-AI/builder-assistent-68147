@@ -109,6 +109,74 @@ const ProjectDetail = () => {
         </div>
 
         <div className="grid gap-6">
+          {/* AI Insights Card */}
+          {(project.key_features?.length || project.materials_mentioned?.length || project.style_preferences?.length || project.budget_estimate || project.timeline_weeks) && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    AI-Extracted Insights
+                  </CardTitle>
+                  {project.last_chat_update && (
+                    <span className="text-xs text-muted-foreground">
+                      Updated {new Date(project.last_chat_update).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {project.key_features && project.key_features.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Key Features</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {project.key_features.map((feature, idx) => (
+                        <Badge key={idx} variant="secondary">{feature}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {project.materials_mentioned && project.materials_mentioned.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Materials Mentioned</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {project.materials_mentioned.map((material, idx) => (
+                        <Badge key={idx} variant="outline">{material}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {project.style_preferences && project.style_preferences.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-2">Style Preferences</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {project.style_preferences.map((style, idx) => (
+                        <Badge key={idx} className="bg-accent">{style}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  {project.budget_estimate && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">AI Budget Estimate</p>
+                      <p className="text-lg font-semibold">${project.budget_estimate.toLocaleString()}</p>
+                    </div>
+                  )}
+                  {project.timeline_weeks && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">AI Timeline Estimate</p>
+                      <p className="text-lg font-semibold">{project.timeline_weeks} weeks</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Project Details</CardTitle>
