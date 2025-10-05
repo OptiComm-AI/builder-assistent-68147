@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Sparkles, User, Bot, Image as ImageIcon, X } from "lucide-react";
+import { Send, Sparkles, User, Bot, Image as ImageIcon, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import aiIcon from "@/assets/ai-icon.png";
 import ProjectSelector from "@/components/ProjectSelector";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Message {
   role: "user" | "assistant";
@@ -623,6 +624,26 @@ const AIChat = ({
                   )}
                 </div>
               ))}
+              
+              {/* Typing indicator when AI is responding */}
+              {isLoading && (
+                <div className="flex gap-3 justify-start">
+                  <div className="w-8 h-8 rounded-full gradient-accent flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-5 h-5 text-accent-foreground" />
+                  </div>
+                  <div className="max-w-md px-4 py-3 rounded-2xl bg-card border border-border/50">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-xs text-muted-foreground">AI is thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
             
@@ -656,6 +677,7 @@ const AIChat = ({
                   size="icon"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading}
+                  className={isLoading ? "opacity-50 cursor-not-allowed" : ""}
                 >
                   <ImageIcon className="w-5 h-5" />
                 </Button>
@@ -663,7 +685,7 @@ const AIChat = ({
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-                  placeholder="Describe your project or upload an image..."
+                  placeholder={isLoading ? "AI is responding..." : "Describe your project or upload an image..."}
                   className="flex-1 h-12 text-base"
                   disabled={isLoading}
                 />
@@ -674,7 +696,11 @@ const AIChat = ({
                   className="px-6"
                   disabled={isLoading || (!input.trim() && !selectedImage)}
                 >
-                  <Send className="w-5 h-5" />
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
                 </Button>
               </div>
               
