@@ -104,12 +104,28 @@ const ProjectMaterials = ({ projectId, onBOMGenerated }: ProjectMaterialsProps) 
     setIsSearching(true);
     
     try {
-      console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery);
+      // Detect language from project data or recent BOM items
+      const detectLanguage = () => {
+        const projectName = boms?.[0]?.conversations?.title || '';
+        const bomText = JSON.stringify(boms?.[0] || '');
+        const combinedText = projectName + bomText;
+        
+        // Romanian detection: special characters and common words
+        if (/[ăâîșțĂÂÎȘȚ]/.test(combinedText) || 
+            /\b(și|sau|este|sunt|pentru|cu|la|în|pe|de)\b/i.test(combinedText)) {
+          return 'ro';
+        }
+        return 'en';
+      };
+
+      const language = detectLanguage();
+      console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery, 'Language:', language);
       
       const { data, error } = await sb.functions.invoke("search-products", {
         body: { 
           bomItemId,
-          searchQuery
+          searchQuery,
+          language
         },
       });
 

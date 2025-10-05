@@ -41,6 +41,21 @@ serve(async (req) => {
       messages = messagesData || [];
     }
 
+    // Detect language from user messages
+    function detectLanguage(messages: any[]): string {
+      const userMessages = messages.filter((m: any) => m.role === 'user').slice(-5);
+      const text = userMessages.map((m: any) => m.content).join(' ');
+      
+      // Romanian detection: special characters and common words
+      if (/[ăâîșțĂÂÎȘȚ]/.test(text) || 
+          /\b(și|sau|este|sunt|pentru|cu|la|în|pe|de|ce|cum|vreau|aș|doresc)\b/i.test(text)) {
+        return 'ro';
+      }
+      return 'en';
+    }
+
+    const language = detectLanguage(messages);
+
     // Fetch project details
     const { data: project, error: projectError } = await supabase
       .from('projects')
@@ -69,12 +84,33 @@ Materials: ${project.materials_mentioned?.join(', ') || 'Not specified'}
 Features: ${project.key_features?.join(', ') || 'Not specified'}
     `.trim();
 
-    // Call Lovable AI to generate BOM
-    const aiPrompt = `Based on the following renovation project ${conversationContext ? 'conversation and details' : 'details'}, generate a detailed Bill of Materials (BOM).
+    // Prepare prompts based on detected language
+    const systemPrompt = language === 'ro'
+      ? 'Ești un expert în renovări și design interior. Generează liste detaliate și precise de materiale pentru proiecte de renovare a casei. Fii precis și include toate materialele necesare cu cantități realiste și prețuri estimate. Răspunde în limba română.'
+      : 'You are a renovation expert. Generate detailed, accurate bills of materials for home renovation projects. Be thorough and include all necessary items with realistic quantities and estimated prices.';
+
+    const userPrompt = language === 'ro'
+      ? `Pe baza următoarei conversații despre proiectul de renovare, generează o listă completă de materiale (BOM).
+
+${projectContext}
+
+${conversationContext ? `Conversație:\n${conversationContext}\n` : ''}
+
+Generează o listă detaliată cu:
+- Articole categorizate (de ex., Pardoseală, Mobilier, Electrocasnice, Iluminat, Instalații Sanitare, Vopsea și Finisaje, Feronerie, Altele)
+- Nume specifice și descrieri
+- Cantități realiste cu unități corespunzătoare
+- Prețuri estimate pe unitate și totale în USD
+- Niveluri de prioritate (high/medium/low)
+- Note sau specificații relevante
+
+Fii specific și practic.`
+      : `Based on the following renovation project ${conversationContext ? 'conversation and details' : 'details'}, generate a detailed Bill of Materials (BOM).
 
 ${projectContext}
 
 ${conversationContext ? `Conversation:\n${conversationContext}\n` : ''}
+
 Generate a comprehensive BOM with items categorized by: Flooring, Cabinetry, Appliances, Lighting, Plumbing, Paint & Finishes, Hardware, and Other.
 
 For each item provide:
@@ -86,7 +122,7 @@ For each item provide:
 - priority: high, medium, or low
 - notes: Installation notes or alternatives`;
 
-    console.log('Calling Lovable AI for BOM generation...');
+    console.log('Calling Lovable AI for BOM generation in language:', language);
 
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -97,8 +133,8 @@ For each item provide:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are a renovation expert. Generate detailed, accurate bills of materials for home renovation projects.' },
-          { role: 'user', content: aiPrompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
         tools: [{
           type: 'function',

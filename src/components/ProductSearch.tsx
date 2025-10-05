@@ -10,6 +10,7 @@ interface ProductMatch {
   id: string;
   product_name: string;
   product_url: string;
+  image_url?: string | null;
   price: number | null;
   vendor: string;
   in_stock: boolean | null;
@@ -112,7 +113,19 @@ export const ProductSearch = ({ bomItemId, onAddToList }: Props) => {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <Card key={product.id} className={product.is_selected ? 'border-primary' : ''}>
+            <Card key={product.id} className={`overflow-hidden ${product.is_selected ? 'border-primary' : ''}`}>
+              {product.image_url && (
+                <div className="relative h-48 w-full overflow-hidden bg-muted">
+                  <img
+                    src={product.image_url}
+                    alt={product.product_name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base line-clamp-2">

@@ -21,8 +21,8 @@ serve(async (req) => {
   }
 
   try {
-    const { bomItemId, searchQuery } = await req.json();
-    console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery);
+    const { bomItemId, searchQuery, language = 'en' } = await req.json();
+    console.log('Searching products for BOM item:', bomItemId, 'Query:', searchQuery, 'Language:', language);
 
     const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
@@ -91,6 +91,28 @@ serve(async (req) => {
         console.log(`Scraped ${vendor.name}, content length:`, scrapedContent.length);
 
         // Use AI to extract product information from scraped content
+        const systemPrompt = language === 'ro'
+          ? `Ești un expert în extragerea de produse. Extrage până la 5 produse relevante din conținutul scrapat.
+                
+Articol țintă: ${bomItem.item_name}
+Descriere: ${bomItem.description || 'N/A'}
+Categorie: ${bomItem.category}
+Unitate: ${bomItem.unit}
+
+Returnează produse care se potrivesc acestei specificații. Păstrează numele produselor în limba română.`
+          : `You are a product extraction expert. Extract up to 5 relevant products from scraped content.
+                
+Target item: ${bomItem.item_name}
+Description: ${bomItem.description || 'N/A'}
+Category: ${bomItem.category}
+Unit: ${bomItem.unit}
+
+Return products that match this specification.`;
+
+        const userPrompt = language === 'ro'
+          ? `Extrage produse din aceste rezultate de la ${vendor.name}:\n\n${scrapedContent.slice(0, 4000)}`
+          : `Extract products from this ${vendor.name} search results:\n\n${scrapedContent.slice(0, 4000)}`;
+
         const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -100,21 +122,8 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
             messages: [
-              { 
-                role: 'system', 
-                content: `You are a product extraction expert. Extract up to 5 relevant products from scraped content.
-                
-Target item: ${bomItem.item_name}
-Description: ${bomItem.description || 'N/A'}
-Category: ${bomItem.category}
-Unit: ${bomItem.unit}
-
-Return products that match this specification.` 
-              },
-              { 
-                role: 'user', 
-                content: `Extract products from this ${vendor.name} search results:\n\n${scrapedContent.slice(0, 4000)}` 
-              }
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
             ],
             tools: [{
               type: 'function',
@@ -132,6 +141,7 @@ Return products that match this specification.`
                           product_name: { type: 'string' },
                           price: { type: 'number' },
                           product_url: { type: 'string' },
+                          image_url: { type: 'string', description: 'Product image URL if available' },
                           in_stock: { type: 'boolean' },
                           match_score: { 
                             type: 'number',
@@ -166,6 +176,7 @@ Return products that match this specification.`
               bom_item_id: bomItemId,
               product_name: p.product_name,
               product_url: p.product_url || searchUrl,
+              image_url: p.image_url || null,
               price: p.price,
               vendor: vendor.name,
               in_stock: p.in_stock !== false,

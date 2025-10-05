@@ -192,6 +192,7 @@ export type Database = {
         Row: {
           bom_item_id: string
           id: string
+          image_url: string | null
           in_stock: boolean | null
           is_selected: boolean | null
           match_score: number | null
@@ -205,6 +206,7 @@ export type Database = {
         Insert: {
           bom_item_id: string
           id?: string
+          image_url?: string | null
           in_stock?: boolean | null
           is_selected?: boolean | null
           match_score?: number | null
@@ -218,6 +220,7 @@ export type Database = {
         Update: {
           bom_item_id?: string
           id?: string
+          image_url?: string | null
           in_stock?: boolean | null
           is_selected?: boolean | null
           match_score?: number | null
