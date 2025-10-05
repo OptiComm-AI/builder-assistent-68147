@@ -14,18 +14,7 @@ export default function Admin() {
 
   useEffect(() => {
     console.log('[Admin Page] Status:', { loading, isAdmin });
-    
-    // Only redirect if we're done loading AND definitely not an admin
-    // Add a small delay to ensure the check completes
-    if (!loading && !isAdmin) {
-      const timeoutId = setTimeout(() => {
-        console.log('[Admin Page] Redirecting to dashboard - not admin');
-        navigate('/dashboard');
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isAdmin, loading, navigate]);
+  }, [isAdmin, loading]);
 
   if (loading) {
     return (
@@ -36,7 +25,21 @@ export default function Admin() {
   }
 
   if (!isAdmin) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center space-y-4">
+          <Shield className="h-16 w-16 text-muted-foreground mx-auto" />
+          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to access the admin panel.</p>
+          <button 
+            onClick={() => navigate('/dashboard')} 
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -9,6 +9,8 @@ export function useAdmin() {
 
   useEffect(() => {
     let mounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
 
     async function checkAdminStatus() {
       if (!user) {
@@ -20,7 +22,7 @@ export function useAdmin() {
         return;
       }
 
-      console.log('[useAdmin] Checking admin status for user:', user.id);
+      console.log('[useAdmin] Checking admin status for user:', user.id, 'Attempt:', retryCount + 1);
 
       try {
         const { data, error } = await supabase
@@ -30,24 +32,39 @@ export function useAdmin() {
           .eq('role', 'admin')
           .maybeSingle();
 
-        console.log('[useAdmin] Query result:', { data, error });
+        console.log('[useAdmin] Query result:', { data, error, hasData: !!data });
 
         if (error && error.code !== 'PGRST116') {
           console.error('[useAdmin] Error checking admin status:', error);
+          
+          // Retry on error if we haven't exceeded max retries
+          if (retryCount < maxRetries && mounted) {
+            retryCount++;
+            console.log('[useAdmin] Retrying admin check...');
+            setTimeout(() => checkAdminStatus(), 500);
+            return;
+          }
         }
 
         if (mounted) {
           const adminStatus = !!data;
-          console.log('[useAdmin] Admin status:', adminStatus);
+          console.log('[useAdmin] Setting admin status to:', adminStatus);
           setIsAdmin(adminStatus);
+          setLoading(false);
         }
       } catch (error) {
         console.error('[useAdmin] Unexpected error:', error);
+        
+        // Retry on unexpected error
+        if (retryCount < maxRetries && mounted) {
+          retryCount++;
+          console.log('[useAdmin] Retrying after error...');
+          setTimeout(() => checkAdminStatus(), 500);
+          return;
+        }
+        
         if (mounted) {
           setIsAdmin(false);
-        }
-      } finally {
-        if (mounted) {
           setLoading(false);
         }
       }
