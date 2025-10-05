@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,14 +6,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, MessageSquare } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import AIChat from "@/components/AIChat";
 
 const ProjectDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -72,33 +75,32 @@ const ProjectDetail = () => {
     on_hold: "bg-gray-500",
   };
 
+  // Check if project needs onboarding
+  const needsOnboarding = () => {
+    if (!project) return false;
+    const criticalFieldsMissing = [
+      !project.description || project.description.trim().length < 20,
+      !project.budget && !project.budget_estimate,
+      !project.key_features || project.key_features.length === 0,
+      !project.phase || project.phase === "planning"
+    ];
+    return criticalFieldsMissing.filter(Boolean).length >= 2;
+  };
+
+  const handleProjectDataExtracted = () => {
+    setShowUpdateNotification(true);
+    setTimeout(() => setShowUpdateNotification(false), 3000);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
           </Button>
-        </div>
-      </nav>
-
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
-            <Badge className={statusColors[project.status as keyof typeof statusColors]}>
-              {project.status.replace("_", " ").toUpperCase()}
-            </Badge>
-          </div>
           <div className="flex gap-2">
-            <Button 
-              variant="default"
-              onClick={() => navigate(`/chat?projectId=${project.id}`)}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Chat About This Project
-            </Button>
             <Button variant="outline" size="icon">
               <Edit className="h-4 w-4" />
             </Button>
@@ -107,137 +109,219 @@ const ProjectDetail = () => {
             </Button>
           </div>
         </div>
+      </nav>
 
-        <div className="grid gap-6">
-          {/* AI Insights Card */}
-          {(project.key_features?.length || project.materials_mentioned?.length || project.style_preferences?.length || project.budget_estimate || project.timeline_weeks) && (
-            <Card className="border-primary/20 bg-primary/5">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    AI-Extracted Insights
-                  </CardTitle>
-                  {project.last_chat_update && (
-                    <span className="text-xs text-muted-foreground">
-                      Updated {new Date(project.last_chat_update).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {project.key_features && project.key_features.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Key Features</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {project.key_features.map((feature, idx) => (
-                        <Badge key={idx} variant="secondary">{feature}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+      {showUpdateNotification && (
+        <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 animate-fade-in">
+          <div className="container mx-auto flex items-center gap-2 text-sm">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span>💡 Project details updated from conversation</span>
+          </div>
+        </div>
+      )}
 
-                {project.materials_mentioned && project.materials_mentioned.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Materials Mentioned</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {project.materials_mentioned.map((material, idx) => (
-                        <Badge key={idx} variant="outline">{material}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+      {/* Desktop: Two-column layout. Mobile: Tabs */}
+      <div className="container mx-auto px-4 py-6">
+        {/* Mobile: Tabs */}
+        <div className="lg:hidden">
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="details">Project Info</TabsTrigger>
+              <TabsTrigger value="chat">AI Chat</TabsTrigger>
+            </TabsList>
+            <TabsContent value="details" className="space-y-4">
+              <div className="mb-4">
+                <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
+                <Badge className={statusColors[project.status as keyof typeof statusColors]}>
+                  {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
+                </Badge>
+              </div>
+              {renderProjectDetails()}
+            </TabsContent>
+            <TabsContent value="chat" className="h-[calc(100vh-12rem)]">
+              <AIChat 
+                projectId={project.id} 
+                mode="dedicated"
+                onProjectDataExtracted={handleProjectDataExtracted}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
 
-                {project.style_preferences && project.style_preferences.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-2">Style Preferences</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {project.style_preferences.map((style, idx) => (
-                        <Badge key={idx} className="bg-accent">{style}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  {project.budget_estimate && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">AI Budget Estimate</p>
-                      <p className="text-lg font-semibold">${project.budget_estimate.toLocaleString()}</p>
-                    </div>
-                  )}
-                  {project.timeline_weeks && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">AI Timeline Estimate</p>
-                      <p className="text-lg font-semibold">{project.timeline_weeks} weeks</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {project.description && (
-                <div>
-                  <h3 className="font-semibold mb-1">Description</h3>
-                  <p className="text-muted-foreground">{project.description}</p>
-                </div>
-              )}
-
-              {project.phase && (
-                <div>
-                  <h3 className="font-semibold mb-1">Current Phase</h3>
-                  <p className="text-muted-foreground">{project.phase}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            {project.budget && (
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0">
-                  <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" />
-                  <CardTitle className="text-lg">Budget</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">${project.budget.toLocaleString()}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {(project.start_date || project.end_date) && (
-              <Card>
-                <CardHeader className="flex flex-row items-center space-y-0">
-                  <Calendar className="h-5 w-5 mr-2 text-muted-foreground" />
-                  <CardTitle className="text-lg">Timeline</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {project.start_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Start Date</p>
-                      <p className="font-semibold">{new Date(project.start_date).toLocaleDateString()}</p>
-                    </div>
-                  )}
-                  {project.end_date && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">End Date</p>
-                      <p className="font-semibold">{new Date(project.end_date).toLocaleDateString()}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+        {/* Desktop: Two-column */}
+        <div className="hidden lg:grid lg:grid-cols-[1fr_600px] lg:gap-6">
+          <div className="space-y-6">
+            <div className="mb-4">
+              <h1 className="text-3xl font-bold mb-2">{project.name}</h1>
+              <Badge className={statusColors[project.status as keyof typeof statusColors]}>
+                {project.status?.replace("_", " ").toUpperCase() || "PLANNING"}
+              </Badge>
+            </div>
+            {renderProjectDetails()}
+          </div>
+          
+          <div className="sticky top-6 h-[calc(100vh-8rem)]">
+            <AIChat 
+              projectId={project.id} 
+              mode="dedicated"
+              onProjectDataExtracted={handleProjectDataExtracted}
+            />
           </div>
         </div>
       </div>
     </div>
   );
+
+  function renderProjectDetails() {
+    return (
+      <>
+        {/* AI Insights Card */}
+        {(project.key_features?.length || project.materials_mentioned?.length || project.style_preferences?.length || project.budget_estimate || project.timeline_weeks) && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  AI-Extracted Insights
+                </CardTitle>
+                {project.last_chat_update && (
+                  <span className="text-xs text-muted-foreground">
+                    Updated {new Date(project.last_chat_update).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {project.key_features && project.key_features.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Key Features</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {project.key_features.map((feature, idx) => (
+                      <Badge key={idx} variant="secondary">{feature}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {project.materials_mentioned && project.materials_mentioned.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Materials Mentioned</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {project.materials_mentioned.map((material, idx) => (
+                      <Badge key={idx} variant="outline">{material}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {project.style_preferences && project.style_preferences.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Style Preferences</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {project.style_preferences.map((style, idx) => (
+                      <Badge key={idx} className="bg-accent">{style}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                {project.budget_estimate && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">AI Budget Estimate</p>
+                    <p className="text-lg font-semibold">${project.budget_estimate.toLocaleString()}</p>
+                  </div>
+                )}
+                {project.timeline_weeks && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">AI Timeline Estimate</p>
+                    <p className="text-lg font-semibold">{project.timeline_weeks} weeks</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {needsOnboarding() && (
+          <Card className="border-accent/50 bg-accent/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <Sparkles className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold mb-1">Complete Your Project Profile</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Let's chat about your project! I'll help gather important details like budget, timeline, and design preferences through a natural conversation.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    💬 Use the chat on the right (or "AI Chat" tab on mobile) to get started
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {project.description && (
+              <div>
+                <h3 className="font-semibold mb-1">Description</h3>
+                <p className="text-muted-foreground">{project.description}</p>
+              </div>
+            )}
+
+            {project.phase && (
+              <div>
+                <h3 className="font-semibold mb-1">Current Phase</h3>
+                <p className="text-muted-foreground">{project.phase}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {project.budget && (
+            <Card>
+              <CardHeader className="flex flex-row items-center space-y-0">
+                <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" />
+                <CardTitle className="text-lg">Budget</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">${project.budget.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {(project.start_date || project.end_date) && (
+            <Card>
+              <CardHeader className="flex flex-row items-center space-y-0">
+                <Calendar className="h-5 w-5 mr-2 text-muted-foreground" />
+                <CardTitle className="text-lg">Timeline</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {project.start_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Start Date</p>
+                    <p className="font-semibold">{new Date(project.start_date).toLocaleDateString()}</p>
+                  </div>
+                )}
+                {project.end_date && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">End Date</p>
+                    <p className="font-semibold">{new Date(project.end_date).toLocaleDateString()}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </>
+    );
+  }
 };
 
 export default ProjectDetail;

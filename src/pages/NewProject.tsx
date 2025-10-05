@@ -23,7 +23,9 @@ const NewProject = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  if (loading || !user) return null;
+
+  const handleQuickCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
 
@@ -31,24 +33,23 @@ const NewProject = () => {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const { error } = await supabase.from("projects").insert({
+      const { data, error } = await supabase.from("projects").insert({
         user_id: user.id,
         name: formData.get("name") as string,
-        description: formData.get("description") as string,
-        budget: formData.get("budget") ? parseFloat(formData.get("budget") as string) : null,
-        start_date: formData.get("start_date") as string || null,
-        end_date: formData.get("end_date") as string || null,
-        status: formData.get("status") as "planning" | "in_progress" | "completed" | "on_hold",
-        phase: formData.get("phase") as string || null,
-      });
+        description: formData.get("description") as string || "",
+        status: "planning",
+      }).select().single();
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Project created successfully",
+        description: "Project created! Let's chat about it.",
       });
-      navigate("/dashboard");
+      // Redirect to project detail page where chat is embedded
+      if (data) {
+        navigate(`/project/${data.id}`);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -59,8 +60,6 @@ const NewProject = () => {
       setSubmitting(false);
     }
   };
-
-  if (loading || !user) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,67 +76,40 @@ const NewProject = () => {
         <Card>
           <CardHeader>
             <CardTitle>Create New Project</CardTitle>
-            <CardDescription>Fill in the details to start your renovation project</CardDescription>
+            <CardDescription>Give your project a name, and our AI will help you plan the rest through conversation</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleQuickCreate} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Project Name *</Label>
                 <Input id="name" name="name" required placeholder="Kitchen Renovation" />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" name="description" placeholder="Describe your project goals and scope" rows={4} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="budget">Budget ($)</Label>
-                  <Input id="budget" name="budget" type="number" step="0.01" placeholder="50000" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select name="status" defaultValue="planning">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="planning">Planning</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="on_hold">On Hold</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start_date">Start Date</Label>
-                  <Input id="start_date" name="start_date" type="date" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="end_date">End Date</Label>
-                  <Input id="end_date" name="end_date" type="date" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phase">Current Phase</Label>
-                <Input id="phase" name="phase" placeholder="Design & Planning" />
+                <Label htmlFor="description">Brief Description (Optional)</Label>
+                <Textarea 
+                  id="description" 
+                  name="description" 
+                  placeholder="e.g., Kitchen renovation, Bathroom remodel, Living room redesign..." 
+                  rows={3} 
+                />
+                <p className="text-xs text-muted-foreground">
+                  Don't worry about details - our AI assistant will help you with budget, timeline, and features through conversation.
+                </p>
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Creating..." : "Create Project"}
+                <Button type="submit" disabled={submitting} variant="hero" className="flex-1">
+                  {submitting ? "Creating..." : "Create & Chat with AI"}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => navigate("/dashboard")}>
                   Cancel
                 </Button>
               </div>
+              
+              <p className="text-xs text-center text-muted-foreground pt-2">
+                After creating, you'll chat with our AI to plan budget, timeline, materials, and more
+              </p>
             </form>
           </CardContent>
         </Card>

@@ -95,18 +95,47 @@ async function extractProjectInfoAsync(
     const extractedData = JSON.parse(toolCall.function.arguments);
     console.log("Extracted project data:", extractedData);
 
-    // Update project with extracted data
+    // Fetch current project data for incremental merge
+    const { data: currentProject } = await supabase
+      .from("projects")
+      .select("key_features, materials_mentioned, style_preferences, budget_estimate, timeline_weeks")
+      .eq("id", projectId)
+      .single();
+
+    // Merge arrays intelligently (deduplicate)
+    const mergeArrays = (existing: string[] | null, newItems: string[] | null) => {
+      const combined = [...(existing || []), ...(newItems || [])];
+      return [...new Set(combined.map(item => item.toLowerCase()))].map(item => 
+        combined.find(original => original.toLowerCase() === item) || item
+      );
+    };
+
+    const updatedData: any = {
+      ai_extracted_data: extractedData,
+      last_chat_update: new Date().toISOString(),
+    };
+
+    // Only update if new value is more specific/higher confidence
+    if (extractedData.budget_estimate && (!currentProject?.budget_estimate || extractedData.budget_estimate !== currentProject.budget_estimate)) {
+      updatedData.budget_estimate = extractedData.budget_estimate;
+    }
+    if (extractedData.timeline_weeks && (!currentProject?.timeline_weeks || extractedData.timeline_weeks !== currentProject.timeline_weeks)) {
+      updatedData.timeline_weeks = extractedData.timeline_weeks;
+    }
+    if (extractedData.key_features) {
+      updatedData.key_features = mergeArrays(currentProject?.key_features, extractedData.key_features);
+    }
+    if (extractedData.materials_mentioned) {
+      updatedData.materials_mentioned = mergeArrays(currentProject?.materials_mentioned, extractedData.materials_mentioned);
+    }
+    if (extractedData.style_preferences) {
+      updatedData.style_preferences = mergeArrays(currentProject?.style_preferences, extractedData.style_preferences);
+    }
+
+    // Update project with merged data
     const { error } = await supabase
       .from("projects")
-      .update({
-        ai_extracted_data: extractedData,
-        last_chat_update: new Date().toISOString(),
-        budget_estimate: extractedData.budget_estimate || null,
-        timeline_weeks: extractedData.timeline_weeks || null,
-        key_features: extractedData.key_features || null,
-        materials_mentioned: extractedData.materials_mentioned || null,
-        style_preferences: extractedData.style_preferences || null,
-      })
+      .update(updatedData)
       .eq("id", projectId);
 
     if (error) {
@@ -142,9 +171,71 @@ serve(async (req) => {
     // Check if any message contains an image
     const hasImages = messages.some((msg: any) => msg.image_url);
 
-    // Build system prompt based on authentication status
-    let systemPrompt = isAuthenticated
-      ? `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
+    // Check if project needs onboarding
+    let needsOnboarding = false;
+    if (projectId && isAuthenticated) {
+      const { data: project } = await supabase
+        .from("projects")
+        .select("description, budget, budget_estimate, key_features, phase")
+        .eq("id", projectId)
+        .single();
+
+      if (project) {
+        const criticalFieldsMissing = [
+          !project.description || project.description.trim().length < 20,
+          !project.budget && !project.budget_estimate,
+          !project.key_features || project.key_features.length === 0,
+          !project.phase || project.phase === "planning"
+        ];
+        needsOnboarding = criticalFieldsMissing.filter(Boolean).length >= 2;
+      }
+    }
+
+    // Build system prompt based on authentication status and onboarding needs
+    let systemPrompt = "";
+    
+    if (needsOnboarding && isAuthenticated) {
+      systemPrompt = `You are an AI Project Discovery Assistant conducting an intelligent, conversational onboarding for a renovation/design project.
+
+LANGUAGE POLICY:
+- You are multilingual - ALWAYS respond in the SAME language the user is using
+- Switch languages seamlessly as the user switches
+- Never limit yourself to specific languages - you speak ALL languages
+
+YOUR APPROACH:
+- Ask ONE targeted discovery question at a time (never multiple questions)
+- Follow a natural conversation flow, not a rigid form
+- Build on previous answers naturally
+- Show empathy and excitement about their project
+- NEVER ask for information already provided
+- Reference previous context: "You mentioned a $30K budget earlier..."
+
+DISCOVERY FLOW (adapt based on what's already known):
+1. Project vision: "What inspired this project? What problem are you solving or dream are you achieving?"
+2. Budget range: "What's your ideal budget range? Even a rough estimate helps - $5K, $20K, $50K+?"
+3. Timeline: "When would you love to see this completed? Flexible or specific deadline?"
+4. Style preferences: "What design style resonates with you? Modern, rustic, industrial, eclectic?"
+5. Key features: "What are the must-have features? What would make this project perfect for you?"
+6. Materials interest: "Any specific materials or finishes you're drawn to?"
+7. Pain points: "What's frustrating about the current state? What needs to change most?"
+
+AFTER GATHERING SUFFICIENT INFO (5-7 exchanges):
+Provide a warm summary:
+"Perfect! I now have a clear picture of your project. Let me summarize:
+✓ Project Type: [TYPE]
+✓ Budget: [RANGE]
+✓ Timeline: [TIMEFRAME]
+✓ Style: [STYLE]
+✓ Key Features: [FEATURES]
+✓ Pain Points: [ISSUES]
+
+Based on this, here are my top 3 recommendations to get started...
+
+I'll keep learning about your project as we chat. What would you like to discuss next?"
+
+Be conversational, warm, and proactive in your guidance.`;
+    } else if (isAuthenticated) {
+      systemPrompt = `You are an AI Project Assistant specializing in home renovation and interior design with advanced visual analysis capabilities.
 
 LANGUAGE POLICY:
 - You are multilingual and can communicate in ANY language the user prefers
@@ -171,8 +262,9 @@ ${hasImages ? `
 - Identify potential issues and suggest solutions
 - Answer questions about design, construction, and project management
 
-Always be helpful, practical, and proactive in your suggestions.`
-      : `You are a friendly AI assistant helping users plan their renovation or design project.
+Always be helpful, practical, and proactive in your suggestions.`;
+    } else {
+      systemPrompt = `You are a friendly AI assistant helping users plan their renovation or design project.
 
 LANGUAGE POLICY:
 - You are multilingual and can communicate in ANY language the user prefers
@@ -185,6 +277,7 @@ After discussing their ideas for 3-5 messages, GENTLY suggest they create an acc
 Say something like: "I'm getting a great sense of your project! Would you like to create a free account so we can save this conversation and help you track everything?"
 
 Be helpful first, focus on their project, and naturally suggest signup when appropriate.`;
+    }
 
     if (projectId) {
       const { data: project } = await supabase

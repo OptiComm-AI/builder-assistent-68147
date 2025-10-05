@@ -666,9 +666,9 @@ const AIChat = ({
           </div>
         </div>
       )}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl h-full flex flex-col">
-          <div className="bg-card border border-border/50 rounded-2xl shadow-elegant overflow-hidden flex flex-col h-full">
+      <div className={mode === 'dedicated' ? "flex-1 flex flex-col" : "flex-1 flex items-center justify-center p-4"}>
+        <div className={mode === 'dedicated' ? "w-full h-full flex flex-col" : "w-full max-w-4xl h-full flex flex-col"}>
+          <div className={`bg-card border border-border/50 overflow-hidden flex flex-col h-full ${mode === 'dedicated' ? 'rounded-lg' : 'rounded-2xl shadow-elegant'}`}>
             {/* Chat header */}
             <div className="gradient-hero p-6 flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-white/10 backdrop-blur flex items-center justify-center border border-white/20">
