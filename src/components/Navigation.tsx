@@ -62,7 +62,7 @@ const Navigation = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/")}>
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     Dashboard
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
