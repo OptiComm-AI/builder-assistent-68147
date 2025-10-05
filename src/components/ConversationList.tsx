@@ -4,6 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Temporary untyped alias until types regenerate
+const sb = supabase as unknown as any;
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MessageSquarePlus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +48,7 @@ const ConversationList = ({
   const { data: projects } = useQuery({
     queryKey: ["projects", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("projects")
         .select("id, name")
         .order("name");
@@ -59,7 +62,7 @@ const ConversationList = ({
   const { data: conversations, refetch } = useQuery({
     queryKey: ["conversations", user?.id, filterProjectId],
     queryFn: async () => {
-      let query = supabase
+      let query = sb
         .from("conversations")
         .select("*")
         .order("updated_at", { ascending: false });
@@ -106,7 +109,7 @@ const ConversationList = ({
     
     if (!confirm("Are you sure you want to delete this conversation?")) return;
 
-    const { error } = await supabase
+    const { error } = await sb
       .from("conversations")
       .delete()
       .eq("id", conversationId);

@@ -7,6 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import aiIcon from "@/assets/ai-icon.png";
 import ProjectSelector from "@/components/ProjectSelector";
+
+// Temporary untyped alias until types regenerate
+const sb = supabase as unknown as any;
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageContent } from "@/components/MessageContent";
 
@@ -66,6 +69,13 @@ const AIChat = ({
     scrollToBottom();
   }, [messages]);
 
+  // Sync conversationId prop to state
+  useEffect(() => {
+    if (conversationId) {
+      setCurrentConversationId(conversationId);
+    }
+  }, [conversationId]);
+
   // Sync projectId prop changes
   useEffect(() => {
     setCurrentProjectId(projectId);
@@ -74,16 +84,15 @@ const AIChat = ({
   // Auto-load most recent conversation for project in dedicated mode
   useEffect(() => {
     if (mode === 'dedicated' && currentProjectId && user && !conversationId) {
-      supabase
-        .from('conversations')
+      sb.from('conversations')
         .select('id')
         .eq('project_id', currentProjectId)
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single()
-        .then(({ data, error }) => {
-          if (data && !error) {
+        .maybeSingle()
+        .then(({ data }: any) => {
+          if (data) {
             setCurrentConversationId(data.id);
           }
         });
@@ -93,12 +102,11 @@ const AIChat = ({
   // Fetch user's projects for project selector
   useEffect(() => {
     if (user && mode === 'homepage') {
-      supabase
-        .from('projects')
+      sb.from('projects')
         .select('id, name')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .then(({ data }) => {
+        .then(({ data }: any) => {
           if (data) setUserProjects(data);
         });
     }
@@ -107,12 +115,11 @@ const AIChat = ({
   // Fetch project context when projectId is set
   useEffect(() => {
     if (currentProjectId && currentProjectId !== 'new') {
-      supabase
-        .from('projects')
+      sb.from('projects')
         .select('id, name, budget, phase, status, timeline_weeks')
         .eq('id', currentProjectId)
-        .single()
-        .then(({ data }) => {
+        .maybeSingle()
+        .then(({ data }: any) => {
           if (data) setProjectContext(data);
         });
     } else {
@@ -120,11 +127,11 @@ const AIChat = ({
     }
   }, [currentProjectId]);
 
-  // Load conversation messages or localStorage for anonymous users
+  // Load conversation messages when currentConversationId changes
   useEffect(() => {
-    if (!conversationId) {
-      // Check for anonymous chat history in localStorage
-      if (mode === 'homepage' && !user) {
+    if (!user) {
+      // Anonymous user - load from localStorage
+      if (mode === 'homepage') {
         const stored = localStorage.getItem(`anonymous-chat-${anonymousSessionId}`);
         if (stored) {
           try {
@@ -139,19 +146,29 @@ const AIChat = ({
       
       setMessages([{
         role: "assistant",
+        content: "Hi! I'm your AI Project Assistant. Tell me about your renovation or design project, and I'll help you plan it. What are you working on?"
+      }]);
+      return;
+    }
+
+    if (!currentConversationId) {
+      // No conversation selected - show initial message
+      setMessages([{
+        role: "assistant",
         content: mode === 'homepage' && !user
           ? "Hi! I'm your AI Project Assistant. Tell me about your renovation or design project, and I'll help you plan it. What are you working on?"
-          : "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
+          : projectContext 
+            ? `Let's talk about your ${projectContext.name} project! What would you like to discuss?`
+            : "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
       }]);
-      setCurrentConversationId(undefined);
       return;
     }
 
     const loadMessages = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("messages")
         .select("*")
-        .eq("conversation_id", conversationId)
+        .eq("conversation_id", currentConversationId)
         .order("created_at", { ascending: true });
 
       if (error) {
@@ -160,7 +177,7 @@ const AIChat = ({
       }
 
       if (data && data.length > 0) {
-        setMessages(data.map(msg => ({
+        setMessages(data.map((msg: any) => ({
           role: msg.role as "user" | "assistant",
           content: msg.content,
           image_url: msg.image_url || undefined
@@ -171,20 +188,19 @@ const AIChat = ({
           content: "Hi! I'm your AI Project Assistant. Tell me about your project or upload a photo of your space to get started. What would you like to create today?"
         }]);
       }
-      setCurrentConversationId(conversationId);
     };
 
     loadMessages();
 
     // Generate summary when leaving a conversation
     return () => {
-      if (conversationId && messages.length > 2) {
+      if (currentConversationId && messages.length > 2) {
         supabase.functions.invoke('generate-conversation-summary', {
-          body: { conversationId }
+          body: { conversationId: currentConversationId }
         }).catch(err => console.error('Error generating summary:', err));
       }
     };
-  }, [conversationId, mode, user, anonymousSessionId, messages.length]);
+  }, [currentConversationId, mode, user, anonymousSessionId, projectContext]);
 
   // Realtime message updates
   useEffect(() => {
@@ -286,7 +302,7 @@ const AIChat = ({
 
     const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "");
     
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("conversations")
       .insert({
         user_id: user.id,
@@ -305,7 +321,7 @@ const AIChat = ({
   };
 
   const saveMessage = async (convId: string, message: Message) => {
-    const { error } = await supabase
+    const { error } = await sb
       .from("messages")
       .insert({
         conversation_id: convId,
@@ -319,7 +335,7 @@ const AIChat = ({
     }
 
     // Update conversation timestamp
-    await supabase
+    await sb
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", convId);
@@ -477,7 +493,7 @@ const AIChat = ({
         
         // Update project if we have one
         if (currentProjectId && currentProjectId !== 'new') {
-          await supabase
+          await sb
             .from("projects")
             .update({
               ...(projectData.key_features && { key_features: projectData.key_features }),

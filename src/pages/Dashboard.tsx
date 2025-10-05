@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+
+// Temporary untyped alias until types regenerate
+const sb = supabase as unknown as any;
 import { Badge } from "@/components/ui/badge";
 import { Plus, FolderKanban, Clock, CheckCircle2, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -22,7 +25,7 @@ const Dashboard = () => {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects", user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("projects")
         .select("*")
         .order("created_at", { ascending: false });

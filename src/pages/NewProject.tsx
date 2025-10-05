@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+// Temporary untyped alias until types regenerate
+const sb = supabase as unknown as any;
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,7 +36,7 @@ const NewProject = () => {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const { data, error } = await supabase.from("projects").insert({
+      const { data, error } = await sb.from("projects").insert({
         user_id: user.id,
         name: formData.get("name") as string,
         description: formData.get("description") as string || "",
@@ -48,7 +51,7 @@ const NewProject = () => {
       });
       // Redirect to project detail page where chat is embedded
       if (data) {
-        navigate(`/project/${data.id}`);
+        navigate(`/projects/${data.id}`);
       }
     } catch (error: any) {
       toast({

@@ -5,6 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Temporary untyped alias until types regenerate
+const sb = supabase as unknown as any;
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Calendar, DollarSign, Edit, Trash2, Sparkles } from "lucide-react";
@@ -27,11 +30,11 @@ const ProjectDetail = () => {
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("projects")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       return data;
@@ -43,7 +46,7 @@ const ProjectDetail = () => {
     if (!confirm("Are you sure you want to delete this project?")) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await sb
         .from("projects")
         .delete()
         .eq("id", id);
